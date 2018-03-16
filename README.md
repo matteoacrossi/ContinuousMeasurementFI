@@ -1,25 +1,46 @@
 # ContinuousMeasurementFI
-![arxiv:1803.05891](https://img.shields.io/badge/arXiv-1803.05891-brightgreen.svg?link=https://arxiv.org/abs/1803.05891)
+[![arxiv:1803.05891](https://img.shields.io/badge/arXiv-1803.05891-brightgreen.svg)](https://arxiv.org/abs/1803.05891)
 
-Fisher information for magnetometry with continuously monitored spin systems.
+Fisher information for magnetometry with continuously monitored spin systems, with independent Markovian noise acting on each spin. The algorithm is described in Sec. V of the paper available on [the arXiv](https://arxiv.org/abs/1803.05891).
+
+## Usage
+
+```
+    (t, FI, QFI) = Eff_QFI(kwargs...)
+```
+
+Evaluate the continuous-time FI and QFI of a final strong measurement for the
+estimation of the frequency ω with continuous monitoring of each half-spin
+particle affected by noise at an angle θ, with efficiency η using SME
+(stochastic master equation) or SSE (stochastic Schrödinger equation).
+
+The function returns a tuple `(t, FI, QFI)` containing the time vector and the
+vectors containing the FI and average QFI
+
+### Arguments
+
+* `Nj`: number of spins
+* `Ntraj`: number of trajectories for the SSE
+* `Tfinal`: final time of evolution
+* `measurement = :pd` measurement (either `:pd` or `:hd`)
+* `dt`: timestep of the evolution
+* `κ = 1`: the noise coupling
+* `θ = 0`: noise angle (0 parallel, π/2 transverse)
+* `ω = 0`: local value of the frequency
+* `η = 1`: measurement efficiency
+"""
 
 
+### Example
+```
+using Plots
+include("Eff_QFI.jl")
 
-## Noise at an arbitrary angle
-This code covers the case of independent noise (i.e. noise applied to each qubit) at an arbitrary angle θ.
+(t, fi, qfi) = Eff_QFI(Nj=5, Ntraj=10000, Tfinal=5., dt=.1; measurement=:pd, θ = pi/2, ω = 1)
+plot(t, (fi + qfi)./t, xlabel="t", ylabel="Q/t", label=nothing)
+```
 
-This should implement the master equation
-
-$$ d\rho = -i [H,\rho] + \sum_{j=1}^n \mathcal{D}[L_j] \rho dt + \sum_{j=1}^n \eta_j \mathcal H [L_j] \rho dW$$
-
-where the noise operators are
-
-$$ L_j = \cos \theta \sigma_y + \sin \theta \sigma_z $$
-
-so that when $\theta = 0$ we recover the parallel noise case and when $\theta = \pi/2$ we recover the transverse noise case.
-
-## TODO
-Write the most general evolution routine, and pass noise as an argument.
+![](readme.png)
 
 ## Dependencies
 * [`QuantumOptics`](https://github.com/qojulia/QuantumOptics.jl) for constructing states and operators
