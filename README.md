@@ -28,7 +28,6 @@ vectors containing the FI and average QFI
 * `θ = 0`: noise angle (0 parallel, π/2 transverse)
 * `ω = 0`: local value of the frequency
 * `η = 1`: measurement efficiency
-"""
 
 
 ### Example
