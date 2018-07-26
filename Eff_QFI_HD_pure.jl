@@ -28,32 +28,42 @@ vectors containing the FI and average QFI
 function Eff_QFI_HD_pure(Nj::Int64,     # Number of spins
     Ntraj::Int64,                       # Number of trajectories
     Tfinal::Float64,                    # Final time
-    dt::Float64;                        # Time step
-    κ = 1.,                             # Noise coupling
-    θ = 0.,                             # Noise angle
-    ω = 0)                              # Frequency
+    dt::Float64,                        # Time step
+    H, dH,                              # Hamiltonian and its derivative wrt ω
+    non_monitored_noise_op,             # Non monitored noise operators
+    monitored_noise_op;                 # Monitored noise operators
+    initial_state = ghz_state)          # Initial state
 
     Ntime = Int(floor(Tfinal/dt)) # Number of timesteps
 
     dimJ = Int(2^Nj)   # Dimension of the corresponding Hilbert space
 
-    # Define an array of noise channels (they are all sparse matrices)
-    cj = sqrt(κ/2) *
-        [(cos(θ) * σ_j(:z, j, Nj) + sin(θ) * σ_j(:x, j, Nj))
-            for j = 1:Nj]
+    # Non-monitored noise operators
+    # cj = [] if all the noise is monitored
+    cj = non_monitored_noise_op
+    Nnm = length(cj)
+
+    if Nnm == 0
+        cj = spzeros(dimJ, dimJ)
+    end
+
+    # Monitored noise operators
+    Cj = monitored_noise_op
+    Nm = length(Cj)
+
+    if Nm == 0
+        Cj = spzeros(dimJ, dimJ)
+    end
 
     # Store the product of operators for speed
-    cjProd = [cj[i]*cj[j] for i in eachindex(cj), j in eachindex(cj)]
+    CjProd = [Cj[i]*Cj[j] for i in eachindex(Cj), j in eachindex(Cj)]
 
-    # Hamiltonian of the Nj-atom system
-    H = ω * σ(:z, Nj) / 2
-    dH = σ(:z, Nj) / 2        # Derivative of H wrt the parameter ω
-
-    dW() = sqrt(dt) * randn(Nj) # Function that returns a Wiener increment vector
+    dW() = sqrt(dt) * randn(Nm) # Function that returns a Wiener increment vector
 
     # Kraus-like operator, trajectory-independent part
-    M0 = speye(dimJ) - 1im * H * dt -
-                0.5 * dt * sum([c' * c for c in cj])
+    M0 = speye(dimJ) - 1im * H * dt
+                - 0.5 * dt * sum([c'*c for c in cj])
+                - 0.5 * dt * sum([C'*C for C in Cj])
 
     # Initialize the Kraus-like operator
     M = similar(M0)
@@ -86,20 +96,20 @@ function Eff_QFI_HD_pure(Nj::Int64,     # Number of spins
 
         for jt=1:Ntime
             # Homodyne current (Eq. 35) (! c† = c)
-            dy = [2 * ψ' * c * ψ * dt for c in cj] + dW()
+            dy = [2 * ψ' * C * ψ * dt for C in Cj] + dW()
 
             # Kraus operator (Eq. 36)
             M = M0
-            for i = 1 : Nj
-                M += cj[i] * dy[i]
-                M += 0.5 * cjProd[i,i] * (dy[i]^2 - dt)
+            for i = 1 : Nm
+                M += Cj[i] * dy[i]
+                M += 0.5 * CjProd[i,i] * (dy[i]^2 - dt)
             end
 
             # We only have to evaluate half of the products
             # because ci . cj == cj . ci (they act on different spins)
-            for i = 1 : Nj
-                for j = i + 1 : Nj
-                    M += cjProd[i,j] * (dy[i] * dy[j])
+            for i = 1 : Nm
+                for j = i + 1 : Nm
+                    M += CjProd[i,j] * (dy[i] * dy[j])
                 end
             end
 

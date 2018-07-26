@@ -25,33 +25,36 @@ vectors containing the FI and average QFI
 * `θ = 0`: noise angle (0 parallel, π/2 transverse)
 * `ω = 0`: local value of the frequency
 """
-function Eff_QFI_PD_pure(Nj::Int64,     # Number of spins
+function Eff_QFI_PD_pure(Nj::Int64,          # Number of spins
     Ntraj::Int64,                       # Number of trajectories
     Tfinal::Float64,                    # Final time
-    dt::Float64;                        # Time step
-    κ = 1.,                             # Noise coupling
-    θ = 0.,                             # Noise angle
-    ω = 0)                              # Frequency
+    dt::Float64,                        # Time step
+    H, dH,                              # Hamiltonian and its derivative wrt ω
+    non_monitored_noise_op,             # Non monitored noise operators
+    monitored_noise_op;                 # Monitored noise operators
+    initial_state = ghz_state)          # Initial state
 
     Ntime = Int(floor(Tfinal/dt)) # Number of timesteps
 
     dimJ = Int(2^Nj)   # Dimension of the corresponding Hilbert space
 
-    # Define an array of noise channels (they are all sparse matrices)
-    cj = sqrt(κ/2) *
-        [(cos(θ) * σ_j(:z, j, Nj) + sin(θ) * σ_j(:x, j, Nj))
-            for j = 1:Nj]
 
-    # Hamiltonian of the Nj-atom system
-    H = ω * σ(:z, Nj) / 2
-    dH = σ(:z, Nj) / 2        # Derivative of H wrt the parameter ω
+    # Non-monitored noise operators
+    # cj = [] if all the noise is monitored
+    cj = non_monitored_noise_op
+    Nnm = length(cj)
 
-    dW() = sqrt(dt) * randn(Nj) # Function that returns a Wiener increment vector
+    # Monitored noise operators
+    Cj = monitored_noise_op
+    Nm = length(Cj)
 
     # Kraus-like operator, trajectory-independent part
     # see Eqs. (50-51)
-    M0 = sparse(speye(dimJ) - 1im * H * dt - 0.5 * dt * sum([c'*c for c in cj]) )
-    M1 = sqrt(dt) * cj
+    M0 = sparse(speye(dimJ) - 1im * H * dt
+                - 0.5 * dt * sum([c'*c for c in cj])
+                - 0.5 * dt * sum([C'*C for C in Cj]))
+
+    M1 = sqrt(dt) * Cj
 
     # Derivative of the Kraus-like operator wrt to ω
     dM0 = - 1im * dH * dt
@@ -61,10 +64,11 @@ function Eff_QFI_PD_pure(Nj::Int64,     # Number of spins
     # detecting more than one in dt is negligible)
     # p_PD = η * sum(tr(ρ cj'*cj)) *dt,
     # but each noise operator gives 1/2 * κ * id when squared
-    pPD = 0.5 * Nj * κ * dt;
 
     # Initial state of the dynamics
     ψ0 = ghz_state(Nj)
+
+    pPD = η * sum([ψ0' * C' * C * ψ0 for C in Cj]) * dt
 
     t = (1 : Ntime) * dt
 
@@ -89,7 +93,7 @@ function Eff_QFI_PD_pure(Nj::Int64,     # Number of spins
             if (rand() < real(pPD)) # Detected
                 # Choose randomly which channel detected the photon
                 # (with equal probabiltiy)
-                ch = rand(1:Nj)
+                ch = rand(1:Nm)
 
                 new_ψ = M1[ch] * ψ
 

@@ -29,27 +29,31 @@ vectors containing the FI and average QFI
 function Eff_QFI_PD(Nj::Int64,          # Number of spins
     Ntraj::Int64,                       # Number of trajectories
     Tfinal::Float64,                    # Final time
-    dt::Float64;                        # Time step
-    κ = 1.,                             # Noise coupling
-    θ = 0.,                             # Noise angle
-    ω = 0.,                             # Frequency
+    dt::Float64,                        # Time step
+    H, dH,                              # Hamiltonian and its derivative wrt ω
+    non_monitored_noise_op,             # Non monitored noise operators
+    monitored_noise_op;                 # Monitored noise operators
+    initial_state = ghz_state,          # Initial state
     η = 1.)                             # Measurement efficiency
 
     Ntime = Int(floor(Tfinal/dt)) # Number of timesteps
     dimJ = Int(2^Nj)   # Dimension of the corresponding Hilbert space
 
-    # Define an array of noise channels
-    cj = sqrt(κ/2) *
-        [(cos(θ) * σ_j(:z, j, Nj) + sin(θ) * σ_j(:x, j, Nj)) for j = 1:Nj]
+    # Non-monitored noise operators
+    # cj = [] if all the noise is monitored
+    cj = non_monitored_noise_op
+    Nnm = length(cj)
 
-    # ω is the parameter that we want to estimate
-    H = ω * σ(:z, Nj) / 2       # Hamiltonian of the spin system
-    dH = σ(:z, Nj) / 2          # Derivative of H wrt the parameter ω
+    # Monitored noise operators
+    Cj = monitored_noise_op
+    Nm = length(Cj)
 
     # Kraus-like operator, trajectory-independent part
-    M0 = sparse(speye(dimJ) -
-                1im * H * dt - 0.5 * dt * sum([c'*c for c in cj]) )
-    M1 = sqrt(η * dt) * cj
+    M0 = sparse(speye(dimJ) - 1im * H * dt
+                - 0.5 * dt * sum([c'*c for c in cj])
+                - 0.5 * dt * sum([C'*C for C in Cj]))
+
+    M1 = sqrt(η * dt) * Cj
 
     # Derivative of the Kraus-like operator wrt to ω
     dM0 = - 1im * dH * dt
@@ -59,11 +63,15 @@ function Eff_QFI_PD(Nj::Int64,          # Number of spins
     # detecting more than one in dt is negligible)
     # p_PD = η * sum(tr(ρ cj'*cj)) * dt,
     # but each noise operator gives 1/2 * κ * id when squared
-    pPD = 0.5 * Nj * η * κ * dt;
+    #pPD = 0.5 * Nm * η * κ * dt;
 
     # Initial state of the system
-    ψ0 = ghz_state(Nj)
+    ψ0 = initial_state(Nj)
     ρ0 = ψ0 * ψ0'
+
+    # C' * C is actually unitary up to some constant factor, that is what we are
+    # interested in
+    pPD = η * sum([trace(ρ0 * C' * C) for C in Cj]) * dt
 
     t = (1 : Ntime) * dt
 
@@ -77,7 +85,7 @@ function Eff_QFI_PD(Nj::Int64,          # Number of spins
         dρ = zeros(ρ)
         τ = dρ
 
-        FisherT = zeros(t)
+        FisherT  = zeros(t)
         QFisherT = zeros(t)
 
         for jt=1:Ntime
@@ -85,7 +93,7 @@ function Eff_QFI_PD(Nj::Int64,          # Number of spins
             if (rand() < real(pPD)) # Detected
                 # Choose randomly which channel detected the photon
                 # (with equal probabiltiy)
-                ch = rand(1:Nj)
+                ch = rand(1:Nm)
 
                 new_ρ = M1[ch] * ρ * M1[ch]' ;
 
@@ -95,13 +103,13 @@ function Eff_QFI_PD(Nj::Int64,          # Number of spins
                 τ = (M1[ch] * (τ * M1[ch]' + ρ * dM1') + dM1 * ρ * M1[ch]') / tr_ρ
 
             else # Not detected
-                new_ρ = M0 * ρ * M0' + (1 - η) * dt * sum([c * ρ * c' for c in cj])
+                new_ρ = M0 * ρ * M0' + (1 - η) * dt * sum([c * ρ * c' for c in Cj])
                 zchop!(new_ρ)
 
                 tr_ρ = real(trace(new_ρ));
 
                 τ = (M0 * (τ * M0' + ρ * dM0') + dM0 * ρ * M0' +
-                       (1 - η)* dt * sum([c* τ * c' for c in cj]))/ tr_ρ;
+                       (1 - η)* dt * sum([c* τ * c' for c in Cj]))/ tr_ρ;
             end
 
             zchop!(τ) # Round off elements smaller than 1e-14
