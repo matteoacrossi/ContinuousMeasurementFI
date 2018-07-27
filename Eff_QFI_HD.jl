@@ -45,15 +45,20 @@ function Eff_QFI_HD(Ntraj::Int64,       # Number of trajectories
     cj = non_monitored_noise_op
     Nnm = length(cj)
 
+    if Nnm == 0
+        cj = spzeros(dimJ, dimJ)
+    end
+
     # Monitored noise operators
     Cj = monitored_noise_op
     Nm = length(Cj)
-
+    @assert Nm > 0 "monitored_noise_op can't be empty"
+    
     # We store the operators sums for efficiency
     CjSum = [(c + c') for c in Cj]
 
     # We store the operators products for efficiency
-    CjProd = [cj[i]*cj[j] for i in eachindex(Cj), j in eachindex(Cj)]
+    CjProd = [Cj[i]*Cj[j] for i in eachindex(Cj), j in eachindex(Cj)]
 
     dW() = sqrt(dt) * randn(Nm) # Define the Wiener increment vector
 
