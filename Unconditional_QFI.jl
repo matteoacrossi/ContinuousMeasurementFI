@@ -12,8 +12,8 @@ function Unconditional_QFI(
         Tfinal,                             # Final time
         dt,                                 # Time step
         H, dH,                              # Hamiltonian and its derivative wrt ω
-        non_monitored_noise_op,            # Non monitored noise operators
-        [],                                # Monitored noise operators
+        non_monitored_noise_op,             # Non monitored noise operators
+        [],                                 # Monitored noise operators
         initial_state = initial_state,
         η = 0.)
 

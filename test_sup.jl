@@ -1,12 +1,5 @@
-include("NoiseOperators.jl")
-include("Eff_QFI_HD_pure.jl")
-include("Eff_QFI_PD_pure.jl")
-include("States.jl")
-include("Unconditional_QFI.jl")
-include("Uncond_qfi_transverse.jl")
-include("Uncond_qfi_parallel.jl")
-
-using Plots
+include("Eff_QFI_PD_sup.jl")
+include("Eff_QFI_PD.jl")
 
 κ_ind = 1.
 κ_coll = 1.
@@ -34,17 +27,11 @@ monitored_noise_op = [sqrt(κ_coll/2) * σ(:x, Nj)]
     initial_state = ghz_state
     )          # Initial state
 
-@time t2, u_qfi = Unconditional_QFI(
-    5,                                 # Final time
-    .001,                                # Time step
-    H, dH,                              # Hamiltonian and its derivative wrt ω
-    non_monitored_noise_op,             # Non monitored noise operators
-    initial_state = ghz_state
-    )
-
-
-
-plot(t1, fi ./ t1, label= "FI")
-plot!(t1, (fi + qfi) ./ t1, label= "Eff QFI")
-plot!(t2, u_qfi ./ t2, color="black", label="Unc.")
-plot!(t2, Uncond_qfi_parallel(t2, Nj, κ_ind, ω) ./ t2,color="black" , linestyle=:dash, label="Analytic Unc.")
+    @time t2, fi2, qfi2 = Eff_QFI_PD_sup(100,# Number of trajectories
+        5,                                  # Final time
+        .01,                               # Time step
+        H, dH,                          # Hamiltonian and its derivative wrt ω
+        non_monitored_noise_op,           # Non monitored noise operators
+        monitored_noise_op;                 # Monitored noise operators
+        initial_state = ghz_state
+        )          # Initial state

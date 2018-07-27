@@ -2,7 +2,7 @@
 Functions for constructing noise operators
 =#
 using QuantumOptics
-
+import Base.LinAlg.trace
 
 """
     σ_j(j, n, direction)
@@ -50,4 +50,17 @@ function σ(direction::Symbol, n::Int)
         σ += σ_j(direction, i, n)
     end
     return σ
+end
+
+function sup_pre(A)
+    return kron(eye(A), A)
+end
+
+function sup_post(A)
+    return kron(transpose(A), eye(A))
+end
+
+function trace(A::AbstractArray{T,1}) where T
+    N = Int(sqrt(length(A)))
+    return trace(reshape(A, (N,N)))
 end
