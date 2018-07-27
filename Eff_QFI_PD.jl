@@ -48,6 +48,9 @@ function Eff_QFI_PD(Ntraj::Int64,       # Number of trajectories
     # Monitored noise operators
     Cj = monitored_noise_op
     Nm = length(Cj)
+    if Nm == 0
+        Cj = [zeros(H)]
+    end
 
     # Kraus-like operator, trajectory-independent part
     M0 = I - 1im * H * dt
