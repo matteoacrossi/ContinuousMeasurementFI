@@ -44,7 +44,9 @@ function Eff_QFI_PD(Ntraj::Int64,       # Number of trajectories
     # cj = [] if all the noise is monitored
     cj = non_monitored_noise_op
     Nnm = length(cj)
-
+    if Nnm == 0
+        cj = [zeros(H)]
+    end
     # Monitored noise operators
     Cj = monitored_noise_op
     Nm = length(Cj)
@@ -107,13 +109,16 @@ function Eff_QFI_PD(Ntraj::Int64,       # Number of trajectories
                 τ = (M1[ch] * (τ * M1[ch]' + ρ * dM1') + dM1 * ρ * M1[ch]') / tr_ρ
 
             else # Not detected
-                new_ρ = M0 * ρ * M0' + (1 - η) * dt * sum([c * ρ * c' for c in Cj])
+                new_ρ = M0 * ρ * M0' + (1 - η) * dt * sum([c * ρ * c' for c in Cj]) +
+                        + dt * sum([c * ρ * c' for c in cj])
+
                 zchop!(new_ρ)
 
                 tr_ρ = real(trace(new_ρ));
 
                 τ = (M0 * (τ * M0' + ρ * dM0') + dM0 * ρ * M0' +
-                       (1 - η)* dt * sum([c* τ * c' for c in Cj]))/ tr_ρ;
+                       (1 - η)* dt * sum([c * τ * c' for c in Cj]) +
+                       dt * sum([c * τ * c' for c in cj]))/ tr_ρ;
             end
 
             zchop!(τ) # Round off elements smaller than 1e-14
