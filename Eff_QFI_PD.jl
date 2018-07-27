@@ -77,8 +77,8 @@ function Eff_QFI_PD(Ntraj::Int64,       # Number of trajectories
 
     # C' * C is actually unitary up to some constant factor, that is what we are
     # interested in
-    pPD = η * sum([trace(ρ0 * C' * C) for C in Cj]) * dt
-
+    pPD = real(η * sum([trace(ρ0 * C' * C) for C in Cj]) * dt)
+    
     t = (1 : Ntime) * dt
 
     # Run evolution for each trajectory, and build up the average
@@ -102,20 +102,19 @@ function Eff_QFI_PD(Ntraj::Int64,       # Number of trajectories
                 ch = rand(1:Nm)
 
                 new_ρ = M1[ch] * ρ * M1[ch]' ;
-
-                zchop!(new_ρ) # Round off elements smaller than 1e-14
                 tr_ρ = real(trace(new_ρ));
 
+                zchop!(new_ρ) # Round off elements smaller than 1e-14
                 τ = (M1[ch] * (τ * M1[ch]' + ρ * dM1') + dM1 * ρ * M1[ch]') / tr_ρ
 
             else # Not detected
-                new_ρ = M0 * ρ * M0' + (1 - η) * dt * sum([c * ρ * c' for c in Cj]) +
-                        + dt * sum([c * ρ * c' for c in cj])
+                new_ρ = M0 * ρ * M0'
+                new_ρ += (1 - η) * dt * sum([c * ρ * c' for c in Cj])
+                new_ρ += dt * sum([c * ρ * c' for c in cj])
 
                 zchop!(new_ρ)
 
                 tr_ρ = real(trace(new_ρ));
-
                 τ = (M0 * (τ * M0' + ρ * dM0') + dM0 * ρ * M0' +
                        (1 - η)* dt * sum([c * τ * c' for c in Cj]) +
                        dt * sum([c * τ * c' for c in cj]))/ tr_ρ;
