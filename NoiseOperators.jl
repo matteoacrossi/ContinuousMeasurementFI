@@ -64,3 +64,11 @@ function trace(A::AbstractArray{T,1}) where T
     N = Int(sqrt(length(A)))
     return trace(reshape(A, (N,N)))
 end
+
+function sup_pre_post(A, B)
+    return kron(transpose(B), A)
+end
+
+function sup_pre_post(A)
+    return kron(conj(A), A)
+end
