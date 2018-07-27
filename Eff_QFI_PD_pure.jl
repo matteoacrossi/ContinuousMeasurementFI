@@ -25,10 +25,9 @@ vectors containing the FI and average QFI
 * `θ = 0`: noise angle (0 parallel, π/2 transverse)
 * `ω = 0`: local value of the frequency
 """
-function Eff_QFI_PD_pure(Nj::Int64,          # Number of spins
-    Ntraj::Int64,                       # Number of trajectories
-    Tfinal::Float64,                    # Final time
-    dt::Float64,                        # Time step
+function Eff_QFI_PD_pure(Ntraj::Int64,  # Number of trajectories
+    Tfinal::Number,                     # Final time
+    dt::Number,                         # Time step
     H, dH,                              # Hamiltonian and its derivative wrt ω
     non_monitored_noise_op,             # Non monitored noise operators
     monitored_noise_op;                 # Monitored noise operators
@@ -36,7 +35,8 @@ function Eff_QFI_PD_pure(Nj::Int64,          # Number of spins
 
     Ntime = Int(floor(Tfinal/dt)) # Number of timesteps
 
-    dimJ = Int(2^Nj)   # Dimension of the corresponding Hilbert space
+    dimJ = size(H, 1)       # Dimension of the corresponding Hilbert space
+    Nj = Int(log2(dimJ))    # Number of spins
 
 
     # Non-monitored noise operators
@@ -50,9 +50,9 @@ function Eff_QFI_PD_pure(Nj::Int64,          # Number of spins
 
     # Kraus-like operator, trajectory-independent part
     # see Eqs. (50-51)
-    M0 = sparse(speye(dimJ) - 1im * H * dt
-                - 0.5 * dt * sum([c'*c for c in cj])
-                - 0.5 * dt * sum([C'*C for C in Cj]))
+    M0 = I - 1im * H * dt
+            - 0.5 * dt * sum([c'*c for c in cj])
+            - 0.5 * dt * sum([C'*C for C in Cj])
 
     M1 = sqrt(dt) * Cj
 
@@ -66,9 +66,9 @@ function Eff_QFI_PD_pure(Nj::Int64,          # Number of spins
     # but each noise operator gives 1/2 * κ * id when squared
 
     # Initial state of the dynamics
-    ψ0 = ghz_state(Nj)
+    ψ0 = initial_state(Nj)
 
-    pPD = η * sum([ψ0' * C' * C * ψ0 for C in Cj]) * dt
+    pPD = sum([ψ0' * C' * C * ψ0 for C in Cj]) * dt
 
     t = (1 : Ntime) * dt
 

@@ -26,10 +26,9 @@ vectors containing the FI and average QFI
 * `ω = 0`: local value of the frequency
 * `η = 1`: measurement efficiency
 """
-function Eff_QFI_PD(Nj::Int64,          # Number of spins
-    Ntraj::Int64,                       # Number of trajectories
-    Tfinal::Float64,                    # Final time
-    dt::Float64,                        # Time step
+function Eff_QFI_PD(Ntraj::Int64,       # Number of trajectories
+    Tfinal::Number,                     # Final time
+    dt::Number,                         # Time step
     H, dH,                              # Hamiltonian and its derivative wrt ω
     non_monitored_noise_op,             # Non monitored noise operators
     monitored_noise_op;                 # Monitored noise operators
@@ -37,7 +36,9 @@ function Eff_QFI_PD(Nj::Int64,          # Number of spins
     η = 1.)                             # Measurement efficiency
 
     Ntime = Int(floor(Tfinal/dt)) # Number of timesteps
-    dimJ = Int(2^Nj)   # Dimension of the corresponding Hilbert space
+
+    dimJ = size(H, 1)       # Dimension of the corresponding Hilbert space
+    Nj = Int(log2(dimJ))    # Number of spins
 
     # Non-monitored noise operators
     # cj = [] if all the noise is monitored
@@ -49,9 +50,9 @@ function Eff_QFI_PD(Nj::Int64,          # Number of spins
     Nm = length(Cj)
 
     # Kraus-like operator, trajectory-independent part
-    M0 = sparse(speye(dimJ) - 1im * H * dt
+    M0 = I - 1im * H * dt
                 - 0.5 * dt * sum([c'*c for c in cj])
-                - 0.5 * dt * sum([C'*C for C in Cj]))
+                - 0.5 * dt * sum([C'*C for C in Cj])
 
     M1 = sqrt(η * dt) * Cj
 
