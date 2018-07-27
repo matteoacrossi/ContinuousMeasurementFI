@@ -131,7 +131,7 @@ function Eff_QFI_PD_sup(Ntraj::Int64,       # Number of trajectories
 
             else # Not detected
                 new_ρ = A * ρ
-                #println(reshape(M0post' * M0pre * ρ, (dimJ, dimJ)))
+                
                 zchop!(new_ρ)
 
                 tr_ρ = real(trace(new_ρ));
