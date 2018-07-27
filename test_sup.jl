@@ -1,11 +1,13 @@
 include("Eff_QFI_PD_sup.jl")
 include("Eff_QFI_PD.jl")
+using Plots
+using Base.Test
 
 κ_ind = 1.
 κ_coll = 1.
 θ = 0.
 ω = 1.
-Nj = 2
+Nj = 4
 
 # ω is the parameter that we want to estimate
 H = ω * σ(:z, Nj) / 2       # Hamiltonian of the spin system
@@ -18,7 +20,8 @@ non_monitored_noise_op = (sqrt(κ_ind/2) *
 
 monitored_noise_op = [sqrt(κ_coll/2) * σ(:x, Nj)]
 
-@time t1, fi, qfi = Eff_QFI_PD(100,# Number of trajectories
+srand(100)
+@time t1, fi, qfi = Eff_QFI_PD(40,# Number of trajectories
     5,                                  # Final time
     .01,                               # Time step
     H, dH,                          # Hamiltonian and its derivative wrt ω
@@ -27,7 +30,8 @@ monitored_noise_op = [sqrt(κ_coll/2) * σ(:x, Nj)]
     initial_state = ghz_state
     )          # Initial state
 
-    @time t2, fi2, qfi2 = Eff_QFI_PD_sup(100,# Number of trajectories
+srand(100)
+@time t2, fi2, qfi2 = Eff_QFI_PD_sup(40,# Number of trajectories
         5,                                  # Final time
         .01,                               # Time step
         H, dH,                          # Hamiltonian and its derivative wrt ω
@@ -35,3 +39,12 @@ monitored_noise_op = [sqrt(κ_coll/2) * σ(:x, Nj)]
         monitored_noise_op;                 # Monitored noise operators
         initial_state = ghz_state
         )          # Initial state
+
+
+@test fi ≈ fi2
+@test qfi ≈ qfi2
+# plot(t1, fi ./ t1, label= "FI")
+# plot!(t1, (fi + qfi) ./ t1, label= "Eff QFI")
+#
+# plot!(t2, fi ./ t1, linestyle=:dash, label="FI 2")
+# plot!(t2, (fi2 + qfi2) ./ t1, label= "Eff QFI 2")

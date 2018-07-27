@@ -45,8 +45,9 @@ function Eff_QFI_PD_sup(Ntraj::Int64,       # Number of trajectories
     cj = non_monitored_noise_op
     Nnm = length(cj)
 
-    cjpre = sup_pre.(cj)
-    cjpost = sup_post.(cj)
+    cjprepost = sup_pre_post.(cj)
+
+    scjprepost = sum(cjprepost)
 
     # Monitored noise operators
     Cj = monitored_noise_op
@@ -55,8 +56,8 @@ function Eff_QFI_PD_sup(Ntraj::Int64,       # Number of trajectories
         Cj = [zeros(H)]
     end
 
-    Cjpre = sup_pre.(Cj)
-    Cjpost = sup_post.(Cj)
+    Cjprepost = sup_pre_post.(Cj)
+    sCjprepost =  sum(Cjprepost)
 
 
     # Kraus-like operator, trajectory-independent part
@@ -65,18 +66,23 @@ function Eff_QFI_PD_sup(Ntraj::Int64,       # Number of trajectories
                 - 0.5 * dt * sum([C'*C for C in Cj])
 
     M0pre = sup_pre(M0)
-    M0post = sup_post(M0)
+    M0post = sup_post(M0')
 
     M1 = sqrt(η * dt) * Cj
     M1pre = sup_pre.(M1)
-    M1post = sup_post.(M1)
+    M1post = conj.(transpose.(sup_post.(M1)))
 
     # Derivative of the Kraus-like operator wrt to ω
     dM0 = - 1im * dH * dt
     dM0pre = sup_pre(dM0)
-    dM0post = sup_post(dM0)
+    dM0post = sup_post(dM0')
 
-    dM1 = 0
+    dM1pre = 0
+    dM1post = 0
+
+    A = (M0post * M0pre +
+            (1 - η) * dt * sCjprepost +
+            dt * scjprepost)
 
     # Probability of detecting a single photon (the probability of
     # detecting more than one in dt is negligible)
@@ -90,7 +96,7 @@ function Eff_QFI_PD_sup(Ntraj::Int64,       # Number of trajectories
 
     # C' * C is actually unitary up to some constant factor, that is what we are
     # interested in
-    pPD = η * sum([trace(C' * C * ρ0) for C in Cjpre]) * dt
+    pPD = real(η * sum([trace(c * ρ0) for c in Cjprepost]) * dt)
 
     t = (1 : Ntime) * dt
 
@@ -114,22 +120,25 @@ function Eff_QFI_PD_sup(Ntraj::Int64,       # Number of trajectories
                 # Choose randomly which channel detected the photon
                 # (with equal probabiltiy)
                 ch = rand(1:Nm)
+                new_ρ = M1post[ch] * M1pre[ch] * ρ ;
 
-                new_ρ = M1post[ch]' * M1pre[ch] * ρ ;
-
-                zchop!(new_ρ) # Round off elements smaller than 1e-14
                 tr_ρ = real(trace(new_ρ));
 
-                τ = (M1pre[ch] * ( M1post[ch]' * τ + dM1post' * ρ ) + dM1pre * M1post[ch]' * ρ ) / tr_ρ
+                zchop!(new_ρ) # Round off elements smaller than 1e-14
+
+                τ = (M1pre[ch] * ( M1post[ch] * τ + dM1post * ρ )
+                        + dM1pre * M1post[ch] * ρ ) / tr_ρ
 
             else # Not detected
-                new_ρ = M0pre * M0post' * ρ  + (1 - η) * dt * sum([Cjpre[i] * Cjpost[i]' * ρ for i in eachindex(Cj)])
+                new_ρ = A * ρ
+                #println(reshape(M0post' * M0pre * ρ, (dimJ, dimJ)))
                 zchop!(new_ρ)
 
                 tr_ρ = real(trace(new_ρ));
 
-                τ = (M0pre * (M0post' * τ  +  dM0post' * ρ) + dM0pre * M0post' * ρ +
-                       (1 - η)* dt * sum([Cjpre[i] * Cjpost[i]' * τ for i in eachindex(Cj)]))/ tr_ρ;
+                τ = (M0pre * (M0post * τ  +  dM0post * ρ) + dM0pre * M0post * ρ +
+                       (1 - η)* dt * sCjprepost * τ +
+                       dt * scjprepost * τ )/ tr_ρ;
             end
 
             zchop!(τ) # Round off elements smaller than 1e-14
@@ -144,7 +153,7 @@ function Eff_QFI_PD_sup(Ntraj::Int64,       # Number of trajectories
             FisherT[jt] = real(tr_τ^2)
 
             # We evaluate the QFI for a final strong measurement done at time t
-            QFisherT[jt] = QFI(ρ, dρ)
+            QFisherT[jt] = QFI(reshape(ρ,(dimJ, dimJ)), reshape(dρ,(dimJ, dimJ)))
         end
 
         # Use the reduction feature of @parallel for
