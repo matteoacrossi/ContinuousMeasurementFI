@@ -29,7 +29,6 @@ function Eff_QFI_PD_pure(Ntraj::Int64,  # Number of trajectories
     Tfinal::Number,                     # Final time
     dt::Number,                         # Time step
     H, dH,                              # Hamiltonian and its derivative wrt ω
-    non_monitored_noise_op,             # Non monitored noise operators
     monitored_noise_op;                 # Monitored noise operators
     initial_state = ghz_state)          # Initial state
 
@@ -38,11 +37,7 @@ function Eff_QFI_PD_pure(Ntraj::Int64,  # Number of trajectories
     dimJ = size(H, 1)       # Dimension of the corresponding Hilbert space
     Nj = Int(log2(dimJ))    # Number of spins
 
-
-    # Non-monitored noise operators
-    # cj = [] if all the noise is monitored
-    cj = non_monitored_noise_op
-    Nnm = length(cj)
+    # Non-monitored noise operators can't be used here
 
     # Monitored noise operators
     Cj = monitored_noise_op
@@ -50,9 +45,7 @@ function Eff_QFI_PD_pure(Ntraj::Int64,  # Number of trajectories
 
     # Kraus-like operator, trajectory-independent part
     # see Eqs. (50-51)
-    M0 = I - 1im * H * dt
-            - 0.5 * dt * sum([c'*c for c in cj])
-            - 0.5 * dt * sum([C'*C for C in Cj])
+    M0 = I - 1im * H * dt - 0.5 * dt * sum([C'*C for C in Cj])
 
     M1 = sqrt(dt) * Cj
 

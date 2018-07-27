@@ -30,7 +30,6 @@ function Eff_QFI_HD_pure(
     Tfinal::Number,                     # Final time
     dt::Number,                         # Time step
     H, dH,                              # Hamiltonian and its derivative wrt ω
-    non_monitored_noise_op,             # Non monitored noise operators
     monitored_noise_op;                 # Monitored noise operators
     initial_state = ghz_state)          # Initial state
 
@@ -39,23 +38,9 @@ function Eff_QFI_HD_pure(
 
     Ntime = Int(floor(Tfinal/dt)) # Number of timesteps
 
-
-    # Non-monitored noise operators
-    # cj = [] if all the noise is monitored
-    cj = non_monitored_noise_op
-    Nnm = length(cj)
-
-    if Nnm == 0
-        cj = spzeros(dimJ, dimJ)
-    end
-
     # Monitored noise operators
     Cj = monitored_noise_op
     Nm = length(Cj)
-
-    if Nm == 0
-        Cj = spzeros(dimJ, dimJ)
-    end
 
     # Store the product of operators for speed
     CjProd = [Cj[i]*Cj[j] for i in eachindex(Cj), j in eachindex(Cj)]
@@ -63,9 +48,7 @@ function Eff_QFI_HD_pure(
     dW() = sqrt(dt) * randn(Nm) # Function that returns a Wiener increment vector
 
     # Kraus-like operator, trajectory-independent part
-    M0 = I - 1im * H * dt
-                - 0.5 * dt * sum([c'*c for c in cj])
-                - 0.5 * dt * sum([C'*C for C in Cj])
+    M0 = I - 1im * H * dt - 0.5 * dt * sum([C'*C for C in Cj])
 
     # Initialize the Kraus-like operator
     M = similar(M0)
