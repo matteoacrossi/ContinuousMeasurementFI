@@ -12,8 +12,7 @@ estimation of the frequency ω with continuous homodyne monitoring of each half-
 particle affected by noise at an angle θ, with efficiency η using SME
 (stochastic master equation).
 
-The function returns a tuple `(t, FI, QFI)` containing the time vector and the
-vectors containing the FI and average QFI
+The function returns a tuple `(t, FI, QFI)` containing the time vector and the vectors containing the FI and average QFI
 
 # Arguments
 
@@ -53,7 +52,7 @@ function Eff_QFI_HD(Ntraj::Int64,       # Number of trajectories
     Cj = monitored_noise_op
     Nm = length(Cj)
     @assert Nm > 0 "monitored_noise_op can't be empty"
-    
+
     # We store the operators sums for efficiency
     CjSum = [(c + c') for c in Cj]
 
@@ -103,7 +102,8 @@ function Eff_QFI_HD(Ntraj::Int64,       # Number of trajectories
 
             # Evolve the density operator
             new_ρ = M * ρ * M' +
-                     (1 - η) * dt * sum([C * ρ * C' for C in Cj])
+                     (1 - η) * dt * sum([C * ρ * C' for C in Cj]) +
+                     dt * sum([c * ρ * c' for c in cj])
 
             zchop!(new_ρ) # Round off elements smaller than 1e-14
 
@@ -111,7 +111,8 @@ function Eff_QFI_HD(Ntraj::Int64,       # Number of trajectories
 
             # Evolve the unnormalized derivative wrt ω
             τ = (M * (τ * M' + ρ * dM') + dM * ρ * M' +
-                   (1 - η)* dt * sum([C * τ * C' for C in Cj])
+                   (1 - η)* dt * sum([C * τ * C' for C in Cj]) +
+                   dt * sum([c * ρ * c' for c in cj])
                   )/ tr_ρ
 
             zchop!(τ) # Round off elements smaller than 1e-14
