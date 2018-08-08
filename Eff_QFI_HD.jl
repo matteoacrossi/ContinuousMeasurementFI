@@ -62,9 +62,7 @@ function Eff_QFI_HD(Ntraj::Int64,       # Number of trajectories
     dW() = sqrt(dt) * randn(Nm) # Define the Wiener increment vector
 
     # Kraus-like operator, trajectory-independent part
-    M0 = I - 1im * H * dt
-                - 0.5 * dt * sum([c' * c for c in cj])
-                - 0.5 * dt * sum([C'*C for C in Cj])
+    M0 = I - 1im * H * dt - 0.5 * dt * sum([c' * c for c in cj]) - 0.5 * dt * sum([C'*C for C in Cj])
 
     # Derivative of the Kraus-like operator wrt to ω
     dM = -1im * dH * dt
@@ -99,7 +97,6 @@ function Eff_QFI_HD(Ntraj::Int64,       # Number of trajectories
                 sqrt(η) * sum([Cj[j] * dy[j] for j = 1:Nm]) +
                 η/2 * sum([CjProd[i,j] *(dy[i] * dy[j] - (i == j ? dt : 0)) for i = 1:Nm, j = 1:Nm])
 
-
             # Evolve the density operator
             new_ρ = M * ρ * M' +
                      (1 - η) * dt * sum([C * ρ * C' for C in Cj]) +
@@ -112,7 +109,7 @@ function Eff_QFI_HD(Ntraj::Int64,       # Number of trajectories
             # Evolve the unnormalized derivative wrt ω
             τ = (M * (τ * M' + ρ * dM') + dM * ρ * M' +
                    (1 - η)* dt * sum([C * τ * C' for C in Cj]) +
-                   dt * sum([c * ρ * c' for c in cj])
+                   dt * sum([c * τ * c' for c in cj])
                   )/ tr_ρ
 
             zchop!(τ) # Round off elements smaller than 1e-14
