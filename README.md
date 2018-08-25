@@ -32,14 +32,13 @@ vectors containing the FI and average QFI
 * `ω = 0`: local value of the frequency
 * `η = 1`: measurement efficiency
 
-
 ### Example
 ```
 using Plots
 include("Eff_QFI.jl")
 
 (t, fi, qfi) = Eff_QFI(Nj=5, Ntraj=10000, Tfinal=5., dt=.1; measurement=:pd, θ = pi/2, ω = 1)
-plot(t, (fi + qfi)./t, xlabel="t", ylabel="Q/t", label=nothing)
+plot(t, (fi + qfi)./t, xlabel="t", ylabel="Q/t")
 ```
 
 ![](readme.png)
