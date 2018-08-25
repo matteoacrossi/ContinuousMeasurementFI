@@ -1,8 +1,7 @@
 #=
 Functions for constructing noise operators
 =#
-using QuantumOptics
-
+using SparseArrays
 
 """
     σ_j(j, n, direction)
@@ -12,22 +11,20 @@ Return a sparse matrix representing the Pauli operator on the ``j``-th of ``n`` 
 `direction` must be `(:x, :y, :z)`
 """
 function σ_j(direction::Symbol, j::Int, n::Int)
-    if direction ∉ (:x, :y, :z)
-        throw(ArgumentError("Direction must be :x, :y, :z"))
-    end
+    @assert direction ∈ (:x, :y, :z) "Direction must be :x, :y, :z"
+    @assert j <= n "j must be less or equal than n"
 
-    if j > n
-        throw(ArgumentError("j must be less or equal than n"))
-    end
+    sigma = Dict(:x => sparse([0. 1.; 1. 0.] + 0im),
+             :y => sparse([0. -1im; 1im 0.]),
+             :z => sparse([1. 0; 0. -1.] + 0im))
 
-    b = SpinBasis(1//2)
-    operator = eval(Symbol("sigma" * String(direction)))
-
-    return tensor(
-            vcat([identityoperator(b) for i = 1:j-1],
-                [operator(b)],
-                [identityoperator(b) for i = j + 1:n])...).data
+    return kron(
+            vcat([speye(2) for i = j + 1:n],
+                [sigma[direction]],
+                [speye(2) for i = 1:j-1])...)
 end
+
+
 
 """
     σ(direction, n)
