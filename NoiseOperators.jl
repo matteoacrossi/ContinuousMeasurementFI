@@ -14,14 +14,14 @@ function σ_j(direction::Symbol, j::Int, n::Int)
     @assert direction ∈ (:x, :y, :z) "Direction must be :x, :y, :z"
     @assert j <= n "j must be less or equal than n"
 
-    sigma = Dict(:x => sparse([0. 1.; 1. 0.] + 0im),
+    sigma = Dict(:x => sparse([0im 1.; 1. 0.] ),
              :y => sparse([0. -1im; 1im 0.]),
-             :z => sparse([1. 0; 0. -1.] + 0im))
+             :z => sparse([1. 0im; 0. -1.]))
 
     return kron(
-            vcat([speye(2) for i = j + 1:n],
+            vcat([SparseMatrixCSC{ComplexF64}(I, 2, 2) for i = j + 1:n],
                 [sigma[direction]],
-                [speye(2) for i = 1:j-1])...)
+                [SparseMatrixCSC{ComplexF64}(I, 2, 2) for i = 1:j-1])...)
 end
 
 

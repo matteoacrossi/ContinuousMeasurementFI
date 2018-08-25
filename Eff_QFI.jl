@@ -1,3 +1,6 @@
+using SparseArrays
+using LinearAlgebra
+
 include("Eff_QFI_PD.jl")
 include("Eff_QFI_PD_pure.jl")
 include("Eff_QFI_HD.jl")

@@ -1,4 +1,5 @@
 using ZChop # For chopping small imaginary parts in ρ
+using Distributed
 
 include("NoiseOperators.jl")
 include("States.jl")
@@ -52,7 +53,7 @@ function Eff_QFI_HD_pure(Nj::Int64,     # Number of spins
     dW() = sqrt(dt) * randn(Nj) # Function that returns a Wiener increment vector
 
     # Kraus-like operator, trajectory-independent part
-    M0 = speye(dimJ) - 1im * H * dt -
+    M0 = I - 1im * H * dt -
                 0.5 * dt * sum([c' * c for c in cj])
 
     # Initialize the Kraus-like operator
@@ -70,19 +71,19 @@ function Eff_QFI_HD_pure(Nj::Int64,     # Number of spins
 
     # Run evolution for each trajectory, and build up the average
     # for FI and final strong measurement QFI
-    # Uses Julia @parallel macro for simple parallelization
-    result = @parallel (+) for ktraj = 1 : Ntraj
+    # Uses Julia @distributed macro for simple parallelization
+    result = @distributed (+) for ktraj = 1 : Ntraj
 
         ψ = copy(ψ0)
         # Derivative of ψ wrt the parameter
         # (Initial state does not depend on the paramter)
-        dψ = zeros(ψ0)
+        dψ = zero(ψ0)
 
-        ϕ = zeros(ψ0)
+        ϕ = zero(ψ0)
 
         # Vectors for the FI and QFI for the specific trajectory
-        FisherT = zeros(t)
-        QFisherT = zeros(t)
+        FisherT = similar(t)
+        QFisherT = similar(t)
 
         for jt=1:Ntime
             # Homodyne current (Eq. 35) (! c† = c)
@@ -121,7 +122,7 @@ function Eff_QFI_HD_pure(Nj::Int64,     # Number of spins
             QFisherT[jt] = 4 * real( dψ' * dψ + (dψ' * ψ)^2); # Eq. (47)
         end
 
-        # Use the reduction feature of @parallel for
+        # Use the reduction feature of @distributed for
         # (at the end of each cicle, sum the result to result)
         hcat(FisherT, QFisherT)
     end

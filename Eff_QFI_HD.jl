@@ -1,4 +1,5 @@
 using ZChop # For chopping small imaginary parts in ρ
+using Distributed
 
 include("NoiseOperators.jl")
 include("States.jl")
@@ -56,7 +57,7 @@ function Eff_QFI_HD(Nj::Int64,          # Number of spins
 
     # Kraus-like operator, trajectory-independent part
 
-    M0 = sparse(speye(dimJ) - 1im * H * dt -
+    M0 = sparse(I - 1im * H * dt -
                 0.5 * dt * sum([c' * c for c in cj]))
 
     # Derivative of the Kraus-like operator wrt to ω
@@ -70,22 +71,22 @@ function Eff_QFI_HD(Nj::Int64,          # Number of spins
 
     # Run evolution for each trajectory, and build up the average
     # for FI and final strong measurement QFI
-    result = @parallel (+) for ktraj = 1 : Ntraj
+    result = @distributed (+) for ktraj = 1 : Ntraj
         ρ = ρ0 # Assign initial state to each trajectory
 
         # Derivative of ρ wrt the parameter
         # Initial state does not depend on the paramter
-        dρ = zeros(ρ)
+        dρ = zero(ρ)
         τ = dρ
 
         # Vectors for the FI and QFI for each trajectory
-        FisherT = zeros(t)
-        QFisherT = zeros(t)
+        FisherT = zero(t)
+        QFisherT = zero(t)
 
         for jt = 1 : Ntime
 
             # Homodyne current (Eq. 35)
-            dy = dt * sqrt(η) * [trace(ρ * c) for c in cjSum] + dW()
+            dy = dt * sqrt(η) * [tr(ρ * c) for c in cjSum] + dW()
 
             # Kraus operator Eq. (36)
             M = M0 +
@@ -99,7 +100,7 @@ function Eff_QFI_HD(Nj::Int64,          # Number of spins
 
             zchop!(new_ρ) # Round off elements smaller than 1e-14
 
-            tr_ρ = trace(new_ρ)
+            tr_ρ = tr(new_ρ)
 
             # Evolve the unnormalized derivative wrt ω
             τ = (M * (τ * M' + ρ * dM') + dM * ρ * M' +
@@ -108,7 +109,7 @@ function Eff_QFI_HD(Nj::Int64,          # Number of spins
 
             zchop!(τ) # Round off elements smaller than 1e-14
 
-            tr_τ = trace(τ)
+            tr_τ = tr(τ)
 
             # Now we can renormalize ρ and its derivative wrt ω
             ρ = new_ρ / tr_ρ
@@ -121,7 +122,7 @@ function Eff_QFI_HD(Nj::Int64,          # Number of spins
             QFisherT[jt] = QFI(ρ, dρ)
         end
 
-        # Use the reduction feature of @parallel for
+        # Use the reduction feature of @distributed for
         # (at the end of each cicle, sum the result to result)
         hcat(FisherT, QFisherT)
     end

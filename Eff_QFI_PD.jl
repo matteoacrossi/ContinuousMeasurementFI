@@ -1,4 +1,5 @@
 using ZChop # For chopping small imaginary parts in ρ
+using Distributed
 
 include("NoiseOperators.jl")
 include("States.jl")
@@ -47,7 +48,7 @@ function Eff_QFI_PD(Nj::Int64,          # Number of spins
     dH = σ(:z, Nj) / 2          # Derivative of H wrt the parameter ω
 
     # Kraus-like operator, trajectory-independent part
-    M0 = sparse(speye(dimJ) -
+    M0 = sparse(I -
                 1im * H * dt - 0.5 * dt * sum([c'*c for c in cj]) )
     M1 = sqrt(η * dt) * cj
 
@@ -69,16 +70,16 @@ function Eff_QFI_PD(Nj::Int64,          # Number of spins
 
     # Run evolution for each trajectory, and build up the average
     # for FI and final strong measurement QFI
-    result = @parallel (+) for ktraj = 1 : Ntraj
+    result = @distributed (+) for ktraj = 1 : Ntraj
         ρ = ρ0 # Assign initial state to each trajectory
 
         # Derivative of ρ wrt the parameter
         # Initial state does not depend on the paramter
-        dρ = zeros(ρ)
+        dρ = zero(ρ)
         τ = dρ
 
-        FisherT = zeros(t)
-        QFisherT = zeros(t)
+        FisherT = zero(t)
+        QFisherT = zero(t)
 
         for jt=1:Ntime
             # Has the photon been detected?
@@ -90,7 +91,7 @@ function Eff_QFI_PD(Nj::Int64,          # Number of spins
                 new_ρ = M1[ch] * ρ * M1[ch]' ;
 
                 zchop!(new_ρ) # Round off elements smaller than 1e-14
-                tr_ρ = real(trace(new_ρ));
+                tr_ρ = real(tr(new_ρ));
 
                 τ = (M1[ch] * (τ * M1[ch]' + ρ * dM1') + dM1 * ρ * M1[ch]') / tr_ρ
 
@@ -98,7 +99,7 @@ function Eff_QFI_PD(Nj::Int64,          # Number of spins
                 new_ρ = M0 * ρ * M0' + (1 - η) * dt * sum([c * ρ * c' for c in cj])
                 zchop!(new_ρ)
 
-                tr_ρ = real(trace(new_ρ));
+                tr_ρ = real(tr(new_ρ));
 
                 τ = (M0 * (τ * M0' + ρ * dM0') + dM0 * ρ * M0' +
                        (1 - η)* dt * sum([c* τ * c' for c in cj]))/ tr_ρ;
@@ -106,7 +107,7 @@ function Eff_QFI_PD(Nj::Int64,          # Number of spins
 
             zchop!(τ) # Round off elements smaller than 1e-14
 
-            tr_τ = trace(τ)
+            tr_τ = tr(τ)
 
             # Now we can renormalize ρ and its derivative wrt ω
             ρ = new_ρ / tr_ρ
@@ -119,7 +120,7 @@ function Eff_QFI_PD(Nj::Int64,          # Number of spins
             QFisherT[jt] = QFI(ρ, dρ)
         end
 
-        # Use the reduction feature of @parallel for
+        # Use the reduction feature of @distributed for
         # (at the end of each cicle, sum the result to result)
         hcat(FisherT, QFisherT)
     end

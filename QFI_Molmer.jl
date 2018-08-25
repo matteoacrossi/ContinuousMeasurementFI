@@ -11,7 +11,7 @@ function QFI_Molmer_GHZ(
     Ntime = Int(floor(Tfinal/dt))
     t = (1 : Ntime) * dt
     θ = pi/2 - θ # Matteo chose the opposite convention for the effective QFI
-    QFisherT = zeros(t)
+    QFisherT = zero(t)
 
     lmat=[ 0 0 0 -1im.*dom ; 
             0  -κ.*sin(θ).^2  -om   κ.*cos(θ).*sin(θ) ; 

@@ -1,0 +1,14 @@
+[[Dates]]
+uuid = "ade2ca70-3891-5945-98fb-dc099432e06a"
+
+[[SparseArrays]]
+uuid = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
+
+[[Test]]
+uuid = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[[ZChop]]
+deps = ["Dates", "SparseArrays", "Test"]
+git-tree-sha1 = "6cb4b784cfb5375d16028e6853564d6e1ad0097d"
+uuid = "8603256b-76ad-53fe-b511-38a38e6437cd"
+version = "0.3.2"
