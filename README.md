@@ -4,6 +4,9 @@
 
 Fisher information for magnetometry with continuously monitored spin systems, with independent Markovian noise acting on each spin. The algorithm is described in Sec. V of the paper available on [the arXiv](https://arxiv.org/abs/1803.05891).
 
+> This version is compatible with Julia v1.0 and it is not compatible with v0.6 anymore.
+
+
 ## Installation
 
 From the Julia `pkg` REPL (press `]`)
@@ -38,19 +41,16 @@ vectors containing the FI and average QFI
 * `ω = 0`: local value of the frequency
 * `η = 1`: measurement efficiency
 
-
 ### Example
 ```
 using Plots
 include("Eff_QFI.jl")
 
 (t, fi, qfi) = Eff_QFI(Nj=5, Ntraj=10000, Tfinal=5., dt=.1; measurement=:pd, θ = pi/2, ω = 1)
-plot(t, (fi + qfi)./t, xlabel="t", ylabel="Q/t", label=nothing)
+plot(t, (fi + qfi)./t, xlabel="t", ylabel="Q/t")
 ```
 
 ![](readme.png)
 
 ## Dependencies
-This package requires Julia v0.7 or newer.
-
 * [`ZChop`](https://github.com/jlapeyre/ZChop.jl) for rounding off small imaginary parts in ρ
