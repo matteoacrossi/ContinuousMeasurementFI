@@ -2,12 +2,19 @@
 [![arxiv:1803.05891](https://img.shields.io/badge/arXiv-1803.05891-brightgreen.svg)](https://arxiv.org/abs/1803.05891)
 [![DOI](https://zenodo.org/badge/119356448.svg)](https://zenodo.org/badge/latestdoi/119356448)
 
-
 Fisher information for magnetometry with continuously monitored spin systems, with independent Markovian noise acting on each spin. The algorithm is described in Sec. V of the paper available on [the arXiv](https://arxiv.org/abs/1803.05891).
+
+## Installation
+
+From the Julia pkg REPL (press `]`)
+```
+  pkg> add https://github.com/matteoacrossi/ContinuousMeasurementFI
+```
 
 ## Usage
 
 ```
+    using ContinuousMeasurementFI
     (t, FI, QFI) = Eff_QFI(kwargs...)
 ```
 
@@ -44,5 +51,6 @@ plot(t, (fi + qfi)./t, xlabel="t", ylabel="Q/t", label=nothing)
 ![](readme.png)
 
 ## Dependencies
-* [`QuantumOptics`](https://github.com/qojulia/QuantumOptics.jl) for constructing states and operators
+This package requires Julia v0.7 or newer.
+
 * [`ZChop`](https://github.com/jlapeyre/ZChop.jl) for rounding off small imaginary parts in ρ
