@@ -2,13 +2,22 @@
 [![arxiv:1803.05891](https://img.shields.io/badge/arXiv-1803.05891-brightgreen.svg)](https://arxiv.org/abs/1803.05891)
 [![DOI](https://zenodo.org/badge/119356448.svg)](https://zenodo.org/badge/latestdoi/119356448)
 
-Fisher information for magnetometry with continuously monitored spin systems, with independent Markovian noise acting on each spin. The algorithm is described in Sec. V of the paper available on [the arXiv](https://arxiv.org/abs/1803.05891). 
+Fisher information for magnetometry with continuously monitored spin systems, with independent Markovian noise acting on each spin. The algorithm is described in Sec. V of the paper available on [the arXiv](https://arxiv.org/abs/1803.05891).
 
 > This version is compatible with Julia v1.0 and it is not compatible with v0.6 anymore.
+
+
+## Installation
+
+From the Julia `pkg` REPL (press `]`)
+```
+  pkg> add https://github.com/matteoacrossi/ContinuousMeasurementFI
+```
 
 ## Usage
 
 ```
+    using ContinuousMeasurementFI
     (t, FI, QFI) = Eff_QFI(kwargs...)
 ```
 
