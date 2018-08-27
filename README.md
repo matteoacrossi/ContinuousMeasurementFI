@@ -10,13 +10,13 @@ Fisher information for magnetometry with continuously monitored spin systems, wi
 ## Installation
 
 From the Julia `pkg` REPL (press `]`)
-```
+```julia
   pkg> add https://github.com/matteoacrossi/ContinuousMeasurementFI
 ```
 
 ## Usage
 
-```
+```julia
     using ContinuousMeasurementFI
     (t, FI, QFI) = Eff_QFI(kwargs...)
 ```
@@ -42,7 +42,7 @@ vectors containing the FI and average QFI
 * `η = 1`: measurement efficiency
 
 ### Example
-```
+```julia
 using Plots
 include("Eff_QFI.jl")
 
@@ -51,6 +51,21 @@ plot(t, (fi + qfi)./t, xlabel="t", ylabel="Q/t")
 ```
 
 ![](readme.png)
+
+
+### Distributed computing
+`ContinuousMeasurementFI` can parallelize the Montecarlo evaluation
+of trajectories using the builtin distributed computing system of Julia
+
+```julia
+using Distributed
+
+addprocs(#_of_processes)
+
+@everywhere using ContinuousMeasurementFI
+(t, FI, QFI) = Eff_QFI(kwargs...)
+```
+
 
 ## Dependencies
 * [`ZChop`](https://github.com/jlapeyre/ZChop.jl) for rounding off small imaginary parts in ρ
