@@ -6,7 +6,7 @@ Fisher information for magnetometry with continuously monitored spin systems, wi
 
 ## Installation
 
-From the Julia pkg REPL (press `]`)
+From the Julia `pkg` REPL (press `]`)
 ```
   pkg> add https://github.com/matteoacrossi/ContinuousMeasurementFI
 ```
