@@ -1,13 +1,18 @@
+"""
+Fisher information for magnetometry with continuously monitored spin systems, with independent Markovian noise acting on each spin
+"""
 module ContinuousMeasurementFI
 
     using SparseArrays
     using LinearAlgebra
 
-    export Eff_QFI
+    export Eff_QFI, Molmer_QFI_GHZ, Molmer_qfi_transverse, uncond_QFI_transverse
 
     include("NoiseOperators.jl")
     include("States.jl")
     include("Fisher.jl")
+    include("Molmer_QFI.jl")
+    include("Uncond_qfi_transverse.jl")
 
     include("Eff_QFI_PD.jl")
     include("Eff_QFI_PD_pure.jl")
