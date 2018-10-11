@@ -1,6 +1,6 @@
 # ContinuousMeasurementFI
 [![arxiv:1803.05891](https://img.shields.io/badge/arXiv-1803.05891-brightgreen.svg)](https://arxiv.org/abs/1803.05891)
-[![DOI](https://zenodo.org/badge/119356448.svg)](https://zenodo.org/badge/latestdoi/119356448)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.1456660.svg)](https://doi.org/10.5281/zenodo.1456660)
 
 Fisher information for magnetometry with continuously monitored spin systems, with independent Markovian noise acting on each spin. The algorithm is described in Sec. V of the paper available on [the arXiv](https://arxiv.org/abs/1803.05891).
 
