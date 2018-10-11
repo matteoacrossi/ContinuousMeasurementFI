@@ -69,3 +69,6 @@ addprocs(#_of_processes)
 
 ## Dependencies
 * [`ZChop`](https://github.com/jlapeyre/ZChop.jl) for rounding off small imaginary parts in ρ
+
+## License
+[MIT License](LICENSE)
