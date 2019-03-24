@@ -1,13 +1,17 @@
 # ContinuousMeasurementFI
-[![arxiv:1803.05891](https://img.shields.io/badge/arXiv-1803.05891-brightgreen.svg)](https://arxiv.org/abs/1803.05891)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.1456660.svg)](https://doi.org/10.5281/zenodo.1456660)
 
-Fisher information for magnetometry with continuously monitored spin systems, with independent Markovian noise acting on each spin. The algorithm is described in Sec. V of the paper available on [the arXiv](https://arxiv.org/abs/1803.05891).
+Fisher information for magnetometry and frequency estimation with continuously monitored spin systems, with independent Markovian noise acting on each spin. 
 
-> This version is compatible with Julia v1.0 and it is not compatible with v0.6 anymore.
+Companion code for
+[F. Albarelli, M. A. C. Rossi, D. Tamascelli1, and M, G. Genoni, Quantum 2, 110 (2018)](https://doi.org/10.22331/q-2018-12-03-110).
+
+The algorithm is described in Sec. V of the paper.
 
 
 ## Installation
+
+> This version is compatible with Julia v0.7 onwards
 
 From the Julia `pkg` REPL (press `]`)
 ```julia
@@ -66,9 +70,13 @@ addprocs(#_of_processes)
 (t, FI, QFI) = Eff_QFI(kwargs...)
 ```
 
-
 ## Dependencies
 * [`ZChop`](https://github.com/jlapeyre/ZChop.jl) for rounding off small imaginary parts in ρ
+
+## Citing
+If you found the code useful for your research, please cite the paper:
+
+[F. Albarelli, M. A. C. Rossi, D. Tamascelli1, and M, G. Genoni, Quantum 2, 110 (2018)](https://doi.org/10.22331/q-2018-12-03-110).
 
 ## License
 [MIT License](LICENSE)
