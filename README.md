@@ -4,7 +4,7 @@
 Fisher information for magnetometry and frequency estimation with continuously monitored spin systems, with independent Markovian noise acting on each spin. 
 
 Companion code for
-[F. Albarelli, M. A. C. Rossi, D. Tamascelli1, and M, G. Genoni, Quantum 2, 110 (2018)](https://doi.org/10.22331/q-2018-12-03-110).
+[F. Albarelli, M. A. C. Rossi, D. Tamascelli, and M, G. Genoni, Quantum 2, 110 (2018)](https://doi.org/10.22331/q-2018-12-03-110).
 
 The algorithm is described in Sec. V of the paper.
 
@@ -76,7 +76,7 @@ addprocs(#_of_processes)
 ## Citing
 If you found the code useful for your research, please cite the paper:
 
-[F. Albarelli, M. A. C. Rossi, D. Tamascelli1, and M, G. Genoni, Quantum 2, 110 (2018)](https://doi.org/10.22331/q-2018-12-03-110).
+[F. Albarelli, M. A. C. Rossi, D. Tamascelli, and M, G. Genoni, Quantum 2, 110 (2018)](https://doi.org/10.22331/q-2018-12-03-110).
 
 ## License
 [MIT License](LICENSE)
