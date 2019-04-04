@@ -1,0 +1,10 @@
+name = "ContinuousMeasurementFI"
+uuid = "0cf28d70-a90b-11e8-0416-0fb7e42d9e6f"
+authors = ["Matteo Rossi <teo.red90@gmail.com>"]
+version = "0.1.0"
+
+[deps]
+Distributed = "8ba89e20-285c-5b6f-9357-94700520ee1b"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
+ZChop = "8603256b-76ad-53fe-b511-38a38e6437cd"

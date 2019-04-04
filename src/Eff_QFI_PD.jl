@@ -1,8 +1,5 @@
 using ZChop # For chopping small imaginary parts in ρ
-
-include("NoiseOperators.jl")
-include("States.jl")
-include("Fisher.jl")
+using Distributed
 
 """
     (t, FI, QFI) = Eff_QFI_PD(Nj, Ntraj, Tfinal, dt; kwargs... )
@@ -55,12 +52,9 @@ function Eff_QFI_PD(Ntraj::Int64,       # Number of trajectories
     end
 
     # Kraus-like operator, trajectory-independent part
-    M0 = I - 1im * H * dt
-                - 0.5 * dt * sum([c'*c for c in cj])
-                - 0.5 * dt * sum([C'*C for C in Cj])
-
-    M1 = sqrt(η * dt) * Cj
-
+    M0 = sparse(I -
+                1im * H * dt - 0.5 * dt * sum([c'*c for c in cj]) )
+    M1 = sqrt(η * dt) * cj
     # Derivative of the Kraus-like operator wrt to ω
     dM0 = - 1im * dH * dt
     dM1 = 0
@@ -83,16 +77,16 @@ function Eff_QFI_PD(Ntraj::Int64,       # Number of trajectories
 
     # Run evolution for each trajectory, and build up the average
     # for FI and final strong measurement QFI
-    result = @parallel (+) for ktraj = 1 : Ntraj
+    result = @distributed (+) for ktraj = 1 : Ntraj
         ρ = ρ0 # Assign initial state to each trajectory
 
         # Derivative of ρ wrt the parameter
         # Initial state does not depend on the paramter
-        dρ = zeros(ρ)
+        dρ = zero(ρ)
         τ = dρ
 
-        FisherT  = zeros(t)
-        QFisherT = zeros(t)
+        FisherT = zero(t)
+        QFisherT = zero(t)
 
         for jt=1:Ntime
             # Has the photon been detected?
@@ -102,7 +96,9 @@ function Eff_QFI_PD(Ntraj::Int64,       # Number of trajectories
                 ch = rand(1:Nm)
 
                 new_ρ = M1[ch] * ρ * M1[ch]' ;
-                tr_ρ = real(trace(new_ρ));
+
+                zchop!(new_ρ) # Round off elements smaller than 1e-14
+                tr_ρ = real(tr(new_ρ));
 
                 zchop!(new_ρ) # Round off elements smaller than 1e-14
                 τ = (M1[ch] * (τ * M1[ch]' + ρ * dM1') + dM1 * ρ * M1[ch]') / tr_ρ
@@ -114,7 +110,8 @@ function Eff_QFI_PD(Ntraj::Int64,       # Number of trajectories
 
                 zchop!(new_ρ)
 
-                tr_ρ = real(trace(new_ρ));
+                tr_ρ = real(tr(new_ρ));
+
                 τ = (M0 * (τ * M0' + ρ * dM0') + dM0 * ρ * M0' +
                        (1 - η)* dt * sum([c * τ * c' for c in Cj]) +
                        dt * sum([c * τ * c' for c in cj]))/ tr_ρ;
@@ -122,7 +119,7 @@ function Eff_QFI_PD(Ntraj::Int64,       # Number of trajectories
 
             zchop!(τ) # Round off elements smaller than 1e-14
 
-            tr_τ = trace(τ)
+            tr_τ = tr(τ)
 
             # Now we can renormalize ρ and its derivative wrt ω
             ρ = new_ρ / tr_ρ
@@ -135,7 +132,7 @@ function Eff_QFI_PD(Ntraj::Int64,       # Number of trajectories
             QFisherT[jt] = QFI(ρ, dρ)
         end
 
-        # Use the reduction feature of @parallel for
+        # Use the reduction feature of @distributed for
         # (at the end of each cicle, sum the result to result)
         hcat(FisherT, QFisherT)
     end

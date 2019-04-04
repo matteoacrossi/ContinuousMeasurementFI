@@ -1,8 +1,5 @@
 using ZChop # For chopping small imaginary parts in ρ
-
-include("NoiseOperators.jl")
-include("States.jl")
-include("Fisher.jl")
+using Distributed
 
 """
     (t, FI, QFI) = Eff_QFI_PD_pure(Nj, Ntraj, Tfinal, dt; kwargs... )
@@ -45,10 +42,9 @@ function Eff_QFI_PD_pure(Ntraj::Int64,  # Number of trajectories
 
     # Kraus-like operator, trajectory-independent part
     # see Eqs. (50-51)
-    M0 = I - 1im * H * dt - 0.5 * dt * sum([C'*C for C in Cj])
 
-    M1 = sqrt(dt) * Cj
-
+    M0 = sparse(I - 1im * H * dt - 0.5 * dt * sum([c'*c for c in cj]) )
+    M1 = sqrt(dt) * cj
     # Derivative of the Kraus-like operator wrt to ω
     dM0 = - 1im * dH * dt
     dM1 = 0
@@ -67,19 +63,19 @@ function Eff_QFI_PD_pure(Ntraj::Int64,  # Number of trajectories
 
     # Run evolution for each trajectory, and build up the average
     # for FI and final strong measurement QFI
-    # Uses Julia @parallel macro for simple parallelization
-    result = @parallel (+) for ktraj = 1 : Ntraj
+    # Uses Julia @distributed macro for simple parallelization
+    result = @distributed (+) for ktraj = 1 : Ntraj
 
         ψ = copy(ψ0) # Assign initial state to each trajectory
 
         # Derivative of ρ wrt the parameter
         # Initial state does not depend on the paramter
-        dψ = zeros(ψ)
-        ϕ = zeros(ψ)
+        dψ = zero(ψ)
+        ϕ = zero(ψ)
 
         # Vectors for the FI and QFI for the specific trajectory
-        FisherT = zeros(t)
-        QFisherT = zeros(t)
+        FisherT = zero(t)
+        QFisherT = zero(t)
 
         for jt=1:Ntime
             # Has the photon been detected?
@@ -112,7 +108,7 @@ function Eff_QFI_PD_pure(Ntraj::Int64,  # Number of trajectories
             QFisherT[jt] = 4 * real( dψ' * dψ + (dψ' * ψ)^2);
         end
 
-        # Use the reduction feature of @parallel for
+        # Use the reduction feature of @distributed for
         # (at the end of each cicle, sum the result to result)
         hcat(FisherT, QFisherT)
     end

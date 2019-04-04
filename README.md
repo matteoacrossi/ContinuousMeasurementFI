@@ -1,13 +1,27 @@
 # ContinuousMeasurementFI
-[![arxiv:1803.05891](https://img.shields.io/badge/arXiv-1803.05891-brightgreen.svg)](https://arxiv.org/abs/1803.05891)
-[![DOI](https://zenodo.org/badge/119356448.svg)](https://zenodo.org/badge/latestdoi/119356448)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.1456660.svg)](https://doi.org/10.5281/zenodo.1456660)
+
+Fisher information for magnetometry and frequency estimation with continuously monitored spin systems, with independent Markovian noise acting on each spin. 
+
+Companion code for
+[F. Albarelli, M. A. C. Rossi, D. Tamascelli, and M, G. Genoni, Quantum 2, 110 (2018)](https://doi.org/10.22331/q-2018-12-03-110).
+
+The algorithm is described in Sec. V of the paper.
 
 
-Fisher information for magnetometry with continuously monitored spin systems, with independent Markovian noise acting on each spin. The algorithm is described in Sec. V of the paper available on [the arXiv](https://arxiv.org/abs/1803.05891).
+## Installation
+
+> This version is compatible with Julia v0.7 onwards
+
+From the Julia `pkg` REPL (press `]`)
+```julia
+  pkg> add https://github.com/matteoacrossi/ContinuousMeasurementFI
+```
 
 ## Usage
 
-```
+```julia
+    using ContinuousMeasurementFI
     (t, FI, QFI) = Eff_QFI(kwargs...)
 ```
 
@@ -31,18 +45,38 @@ vectors containing the FI and average QFI
 * `ω = 0`: local value of the frequency
 * `η = 1`: measurement efficiency
 
-
 ### Example
-```
+```julia
 using Plots
 include("Eff_QFI.jl")
 
 (t, fi, qfi) = Eff_QFI(Nj=5, Ntraj=10000, Tfinal=5., dt=.1; measurement=:pd, θ = pi/2, ω = 1)
-plot(t, (fi + qfi)./t, xlabel="t", ylabel="Q/t", label=nothing)
+plot(t, (fi + qfi)./t, xlabel="t", ylabel="Q/t")
 ```
 
 ![](readme.png)
 
+
+### Distributed computing
+`ContinuousMeasurementFI` can parallelize the Montecarlo evaluation
+of trajectories using the builtin distributed computing system of Julia
+
+```julia
+using Distributed
+
+addprocs(#_of_processes)
+
+@everywhere using ContinuousMeasurementFI
+(t, FI, QFI) = Eff_QFI(kwargs...)
+```
+
 ## Dependencies
-* [`QuantumOptics`](https://github.com/qojulia/QuantumOptics.jl) for constructing states and operators
 * [`ZChop`](https://github.com/jlapeyre/ZChop.jl) for rounding off small imaginary parts in ρ
+
+## Citing
+If you found the code useful for your research, please cite the paper:
+
+[F. Albarelli, M. A. C. Rossi, D. Tamascelli, and M, G. Genoni, Quantum 2, 110 (2018)](https://doi.org/10.22331/q-2018-12-03-110).
+
+## License
+[MIT License](LICENSE)
