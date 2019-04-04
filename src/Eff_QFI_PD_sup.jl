@@ -44,6 +44,9 @@ function Eff_QFI_PD_sup(Ntraj::Int64,       # Number of trajectories
     # cj = [] if all the noise is monitored
     cj = non_monitored_noise_op
     Nnm = length(cj)
+    if Nnm == 0
+        cj = [zeros(H)]
+    end
 
     cjprepost = sup_pre_post.(cj)
 
@@ -53,22 +56,22 @@ function Eff_QFI_PD_sup(Ntraj::Int64,       # Number of trajectories
     Cj = monitored_noise_op
     Nm = length(Cj)
     if Nm == 0
-        Cj = [zeros(H)]
+        Cj = [zero(H)]
     end
 
     Cjprepost = sup_pre_post.(Cj)
     sCjprepost =  sum(Cjprepost)
-
-
+ 
     # Kraus-like operator, trajectory-independent part
-    M0 = I - 1im * H * dt
-                - 0.5 * dt * sum([c'*c for c in cj])
-                - 0.5 * dt * sum([C'*C for C in Cj])
+    M0 = (I - 1im * H * dt - 
+            0.5 * dt * sum([c'*c for c in cj]) -
+            0.5 * dt * sum([C'*C for C in Cj]))
 
     M0pre = sup_pre(M0)
-    M0post = sup_post(M0')
+    M0post = conj.(transpose.(sup_post(M0)))
 
     M1 = sqrt(η * dt) * Cj
+
     M1pre = sup_pre.(M1)
     M1post = conj.(transpose.(sup_post.(M1)))
 
@@ -108,27 +111,29 @@ function Eff_QFI_PD_sup(Ntraj::Int64,       # Number of trajectories
 
         # Derivative of ρ wrt the parameter
         # Initial state does not depend on the paramter
-        dρ = zeros(ρ)
+        dρ = zero(ρ)
         τ = dρ
 
-        FisherT  = zeros(t)
-        QFisherT = zeros(t)
+        FisherT  = zero(t)
+        QFisherT = zero(t)
+
 
         for jt=1:Ntime
             # Has the photon been detected?
             if (rand() < real(pPD)) # Detected
+               
                 # Choose randomly which channel detected the photon
                 # (with equal probabiltiy)
                 ch = rand(1:Nm)
                 new_ρ = M1post[ch] * M1pre[ch] * ρ ;
-
+                
+                
                 tr_ρ = real(trace(new_ρ));
-
                 zchop!(new_ρ) # Round off elements smaller than 1e-14
 
                 τ = (M1pre[ch] * ( M1post[ch] * τ + dM1post * ρ )
                         + dM1pre * M1post[ch] * ρ ) / tr_ρ
-
+                
             else # Not detected
                 new_ρ = A * ρ
                 
@@ -140,11 +145,13 @@ function Eff_QFI_PD_sup(Ntraj::Int64,       # Number of trajectories
                        (1 - η)* dt * sCjprepost * τ +
                        dt * scjprepost * τ )/ tr_ρ;
             end
-
+            
+            
             zchop!(τ) # Round off elements smaller than 1e-14
 
             tr_τ = trace(τ)
-
+            
+            
             # Now we can renormalize ρ and its derivative wrt ω
             ρ = new_ρ / tr_ρ
             dρ = τ - tr_τ * ρ
