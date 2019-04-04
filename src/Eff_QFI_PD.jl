@@ -1,5 +1,6 @@
 using ZChop # For chopping small imaginary parts in ρ
 using Distributed
+using LinearAlgebra
 
 """
     (t, FI, QFI) = Eff_QFI_PD(Nj, Ntraj, Tfinal, dt; kwargs... )
@@ -52,9 +53,12 @@ function Eff_QFI_PD(Ntraj::Int64,       # Number of trajectories
     end
 
     # Kraus-like operator, trajectory-independent part
-    M0 = sparse(I -
-                1im * H * dt - 0.5 * dt * sum([c'*c for c in cj]) )
-    M1 = sqrt(η * dt) * cj
+    M0 = sparse(I - 1im * H * dt - 
+                0.5 * dt * sum([c'*c for c in cj]) -
+                0.5 * dt * sum([C'*C for C in Cj]))
+
+    M1 = sqrt(η * dt) * Cj
+
     # Derivative of the Kraus-like operator wrt to ω
     dM0 = - 1im * dH * dt
     dM1 = 0
@@ -71,10 +75,10 @@ function Eff_QFI_PD(Ntraj::Int64,       # Number of trajectories
 
     # C' * C is actually unitary up to some constant factor, that is what we are
     # interested in
-    pPD = real(η * sum([trace(ρ0 * C' * C) for C in Cj]) * dt)
-    
+    pPD = real(η * sum([tr(ρ0 * C' * C) for C in Cj]) * dt)
+   
     t = (1 : Ntime) * dt
-
+ 
     # Run evolution for each trajectory, and build up the average
     # for FI and final strong measurement QFI
     result = @distributed (+) for ktraj = 1 : Ntraj
@@ -89,20 +93,21 @@ function Eff_QFI_PD(Ntraj::Int64,       # Number of trajectories
         QFisherT = zero(t)
 
         for jt=1:Ntime
+
             # Has the photon been detected?
             if (rand() < real(pPD)) # Detected
+                
                 # Choose randomly which channel detected the photon
                 # (with equal probabiltiy)
                 ch = rand(1:Nm)
 
-                new_ρ = M1[ch] * ρ * M1[ch]' ;
+                new_ρ = M1[ch] * ρ * M1[ch]';
 
                 zchop!(new_ρ) # Round off elements smaller than 1e-14
                 tr_ρ = real(tr(new_ρ));
-
-                zchop!(new_ρ) # Round off elements smaller than 1e-14
+                
                 τ = (M1[ch] * (τ * M1[ch]' + ρ * dM1') + dM1 * ρ * M1[ch]') / tr_ρ
-
+                
             else # Not detected
                 new_ρ = M0 * ρ * M0'
                 new_ρ += (1 - η) * dt * sum([c * ρ * c' for c in Cj])
@@ -124,6 +129,7 @@ function Eff_QFI_PD(Ntraj::Int64,       # Number of trajectories
             # Now we can renormalize ρ and its derivative wrt ω
             ρ = new_ρ / tr_ρ
             dρ = τ - tr_τ * ρ
+
 
             # We evaluate the classical FI for the continuous measurement
             FisherT[jt] = real(tr_τ^2)
