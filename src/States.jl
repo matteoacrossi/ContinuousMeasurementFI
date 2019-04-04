@@ -25,3 +25,10 @@ function ghz_state(n::Int)
     r[1] = r[end] = 1. / sqrt(2.)
     return r
 end
+
+function random_state(n::Int)
+    @assert n > 0 "n must be a positive integer"
+    r = rand(Complex{Float64}, 2^n)
+    r /= norm(r)
+    return r
+end
