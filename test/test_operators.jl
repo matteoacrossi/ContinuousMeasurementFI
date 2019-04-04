@@ -1,9 +1,11 @@
-using Base.Test
+using Test
+using LinearAlgebra
 
+include("../src/NoiseOperators.jl")
 @testset "Trace for vectorized matrix" begin
     N = 4
     ρ = rand(N, N) + 1im * rand(N,N)
-    @test trace(ρ) ≈ trace(ρ[:])
+    @test tr(ρ) ≈ trace(ρ[:])
 end
 
 @testset "Spre, spost" begin
@@ -20,8 +22,10 @@ A = sprand(N, N, .1) + 1im * sprand(N, N, .1)
 @test ρ * A ≈ reshape(sup_post(A) * ρ[:], (N,N))
 @test A * ρ ≈ reshape(sup_pre(A) * ρ[:], (N,N))
 
-@test typeof(sup_post(A)) <: SparseMatrixCSC
-@test typeof(sup_pre(A)) <: SparseMatrixCSC
+println(typeof(A))
+println(typeof(sup_post(A)))
+@test typeof(sup_post(A)) <: typeof(A)
+@test typeof(sup_pre(A)) <: typeof(A)
 
 ρ = rand(N, N) + 1im * rand(N,N)
 A = rand(N, N) + 1im * rand(N,N)

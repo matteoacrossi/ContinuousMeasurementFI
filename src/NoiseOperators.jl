@@ -2,7 +2,7 @@
 Functions for constructing noise operators
 =#
 using SparseArrays
-
+using LinearAlgebra
 """
     σ_j(j, n, direction)
 
@@ -17,11 +17,14 @@ function σ_j(direction::Symbol, j::Int, n::Int)
     sigma = Dict(:x => sparse([0im 1.; 1. 0.] ),
              :y => sparse([0. -1im; 1im 0.]),
              :z => sparse([1. 0im; 0. -1.]))
-
-    return kron(
+    if n == 1
+        return sigma[direction]
+    else
+        return kron(
             vcat([SparseMatrixCSC{ComplexF64}(I, 2, 2) for i = j + 1:n],
                 [sigma[direction]],
                 [SparseMatrixCSC{ComplexF64}(I, 2, 2) for i = 1:j-1])...)
+    end
 end
 
 
@@ -50,16 +53,16 @@ function σ(direction::Symbol, n::Int)
 end
 
 function sup_pre(A)
-    return kron(eye(A), A)
+    return kron(I + zero(A), A)
 end
 
 function sup_post(A)
-    return kron(transpose(A), eye(A))
+    return kron(copy(transpose(A)), I + zero(A))
 end
 
 function trace(A::AbstractArray{T,1}) where T
     N = Int(sqrt(length(A)))
-    return trace(reshape(A, (N,N)))
+    return tr(reshape(A, (N,N)))
 end
 
 function sup_pre_post(A, B)
