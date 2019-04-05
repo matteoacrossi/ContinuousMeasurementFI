@@ -68,7 +68,7 @@ function Eff_QFI_PD_sup(Ntraj::Int64,       # Number of trajectories
             0.5 * dt * sum([C'*C for C in Cj]))
 
     M0pre = sup_pre(M0)
-    M0post = conj.(transpose.(sup_post(M0)))
+    M0post = sup_post(M0)'
 
     M1 = sqrt(η * dt) * Cj
 
