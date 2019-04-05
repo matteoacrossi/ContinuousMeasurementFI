@@ -61,7 +61,8 @@ function Eff_QFI_HD(Ntraj::Int64,       # Number of trajectories
     # Kraus-like operator, trajectory-independent part
 
     M0 = sparse(I - 1im * H * dt -
-                0.5 * dt * sum([c' * c for c in cj]))
+                0.5 * dt * sum([c' * c for c in cj]) - 
+                0.5 * dt * sum([c' * c for c in Cj]))
 
     # Derivative of the Kraus-like operator wrt to ω
     dM = -1im * dH * dt
@@ -89,7 +90,7 @@ function Eff_QFI_HD(Ntraj::Int64,       # Number of trajectories
         for jt = 1 : Ntime
 
             # Homodyne current (Eq. 35)
-            dy = dt * sqrt(η) * [tr(ρ * c) for c in cjSum] + dW()
+            dy = dt * sqrt(η) * [tr(ρ * c) for c in CjSum] + dW()
 
             # Kraus operator Eq. (36)
             M = M0 +
