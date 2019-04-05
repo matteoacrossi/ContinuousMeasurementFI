@@ -7,6 +7,7 @@ module ContinuousMeasurementFI
     using LinearAlgebra
 
     export Eff_QFI, Molmer_QFI_GHZ, Molmer_qfi_transverse, uncond_QFI_transverse
+    export Eff_QFI_PD_sup
 
     include("NoiseOperators.jl")
     include("States.jl")
@@ -18,7 +19,8 @@ module ContinuousMeasurementFI
     include("Eff_QFI_PD_pure.jl")
     include("Eff_QFI_HD.jl")
     include("Eff_QFI_HD_pure.jl")
-
+    include("Eff_QFI_PD_sup.jl")
+    
     """
         (t, FI, QFI) = Eff_QFI(kwargs...)
 
