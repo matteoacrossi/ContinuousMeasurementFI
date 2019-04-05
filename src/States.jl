@@ -2,15 +2,18 @@
 Functions for constructing initial states
 =#
 """
-    plus_state(n)
+    coherent_state(n)
 
 Return the state ``\\ket{+}^{\\otimes n}`` in the computational basis
 """
-function plus_state(n::Int)
+function coherent_state(n::Int)
     @assert n > 0 "n must be a positive integer"
     spinup = Vector{Complex{Float64}}([1., 0.])
     spindown = Vector{Complex{Float64}}([0., 1.])
 
+    if n==1
+        return (spinup + spindown) / sqrt(2.)
+    end
     return kron([(spinup + spindown) / sqrt(2.) for i in 1:n]...)
 end
 
