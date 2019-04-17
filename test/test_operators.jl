@@ -22,8 +22,6 @@ A = sprand(N, N, .1) + 1im * sprand(N, N, .1)
 @test ρ * A ≈ reshape(sup_post(A) * ρ[:], (N,N))
 @test A * ρ ≈ reshape(sup_pre(A) * ρ[:], (N,N))
 
-println(typeof(A))
-println(typeof(sup_post(A)))
 @test typeof(sup_post(A)) <: typeof(A)
 @test typeof(sup_pre(A)) <: typeof(A)
 

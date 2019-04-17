@@ -1,6 +1,16 @@
 using ZChop # For chopping small imaginary parts in ρ
 using Distributed
 
+
+function Unconditional_QFI(Nj::Int64, Tfinal::Real, dt::Real;
+    κ::Real = 1.,                    # Independent noise strength
+    κcoll::Real = 1.,                # Collective noise strength
+    ω::Real = 0.0                   # Frequency of the Hamiltonian
+    )            
+    return Eff_QFI_HD(Nj, 1, Tfinal, dt; κ=κ, κcoll = κcoll, ω=ω, η=0.0)
+end
+
+
 """
     (t, FI, QFI) = Eff_QFI_HD(Nj, Ntraj, Tfinal, dt; kwargs... )
 
@@ -87,6 +97,14 @@ function Eff_QFI_HD(Ntraj::Int64,       # Number of trajectories
         FisherT = zero(t)
         QFisherT = zero(t)
 
+        jx = similar(t)
+        jy = similar(jx)
+        jz = similar(jx)
+
+        jx2 = similar(jx)
+        jy2 = similar(jx)
+        jz2 = similar(jx)
+
         for jt = 1 : Ntime
 
             # Homodyne current (Eq. 35)
@@ -96,6 +114,14 @@ function Eff_QFI_HD(Ntraj::Int64,       # Number of trajectories
             M = M0 +
                 sqrt(η) * sum([Cj[j] * dy[j] for j = 1:Nm]) +
                 η/2 * sum([CjProd[i,j] *(dy[i] * dy[j] - (i == j ? dt : 0)) for i = 1:Nm, j = 1:Nm])
+
+            jx[jt] = real(tr(σ(:x, Nj) / 2. * ρ))
+            jy[jt] = real(tr(σ(:y, Nj) / 2. * ρ))
+            jz[jt] = real(tr(σ(:z, Nj) / 2. * ρ))
+
+            jx2[jt] = real(tr(σ(:x, Nj)^2 / 4. * ρ))
+            jy2[jt] = real(tr(σ(:y, Nj)^2 / 4. * ρ))
+            jz2[jt] = real(tr(σ(:z, Nj)^2 / 4. * ρ))
 
             # Evolve the density operator
             new_ρ = M * ρ * M' +
@@ -129,8 +155,19 @@ function Eff_QFI_HD(Ntraj::Int64,       # Number of trajectories
 
         # Use the reduction feature of @distributed for
         # (at the end of each cicle, sum the result to result)
-        hcat(FisherT, QFisherT)
+        hcat(FisherT, QFisherT, jx, jy, jz, jx2, jy2, jz2)
     end
 
-    return (t, result[:,1] / Ntraj, result[:,2] / Ntraj)
+    jx=result[:,3] / Ntraj 
+    jy=result[:,4] / Ntraj 
+    jz=result[:, 5] / Ntraj
+    Δjx=result[:,6] / Ntraj - jx.^2
+    Δjy=result[:,7] / Ntraj - jy.^2
+    Δjz=result[:,8] / Ntraj - jz.^2
+
+    return (t=t, 
+            FI=result[:,1] / Ntraj, 
+            QFI=result[:,2] / Ntraj, 
+            jx=jx, jy=jy, jz=jz,
+            Δjx=Δjx, Δjy=Δjy, Δjz=Δjz)
 end

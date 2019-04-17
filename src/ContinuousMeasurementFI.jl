@@ -2,12 +2,54 @@
 Fisher information for magnetometry with continuously monitored spin systems, with independent Markovian noise acting on each spin
 """
 module ContinuousMeasurementFI
+    using PyCall
+    const qutip = PyNULL()
+    const piqs = PyNULL()
+    const sp = PyNULL()
+
+    function __init__()
+        # The commands below import the modules, and make sure that they Arguments
+        # installed using Conda.jl
+        copy!(qutip, pyimport_conda("qutip", "qutip", "conda-forge"))
+        copy!(piqs, pyimport_conda("qutip.piqs", "qutip", "conda-forge"))
+        copy!(sp, pyimport_conda("scipy.sparse", "scipy"))
+        
+        # This is the function to get data from the python sparse matrix
+        py"""
+        import scipy.sparse as sp
+        import numpy as np
+        import qutip
+    
+        def sparse_to_ijv(sparsematrix):
+            # If a Qobj, get the sparse representation
+            if isinstance(sparsematrix, qutip.Qobj):
+                sparsematrix = sparsematrix.data
+    
+            # Get the shape of the sparse matrix
+            (m, n) = sparsematrix.shape
+    
+            # Get the row and column incides of the nonzero elements
+            I, J = sparsematrix.nonzero()
+    
+            # Get the vector of values
+            V = np.array([sparsematrix[i,j] for (i,j) in zip(I,J)])
+            
+            # Convert to 1-based indexing
+            I += 1
+            J += 1
+            return (I, J, V, m, n)
+        """
+    end
+
+    include("piqs.jl")
 
     using SparseArrays
     using LinearAlgebra
 
-    export Eff_QFI, Molmer_QFI_GHZ, Molmer_qfi_transverse, uncond_QFI_transverse
-    export Eff_QFI_PD_sup
+    export Molmer_QFI_GHZ, Molmer_qfi_transverse, uncond_QFI_transverse
+    export Unconditional_QFI, Unconditional_QFI_Dicke
+    export Eff_QFI_HD 
+    export Eff_QFI_HD_dicke
 
     include("NoiseOperators.jl")
     include("States.jl")
@@ -15,83 +57,63 @@ module ContinuousMeasurementFI
     include("Molmer_QFI.jl")
     include("Uncond_qfi_transverse.jl")
 
-    include("Eff_QFI_PD.jl")
-    include("Eff_QFI_PD_pure.jl")
+    include("Eff_QFI_HD_dicke.jl")
     include("Eff_QFI_HD.jl")
-    include("Eff_QFI_HD_pure.jl")
-    include("Eff_QFI_PD_sup.jl")
-    
+
     """
-        (t, FI, QFI) = Eff_QFI(kwargs...)
+        (t, FI, QFI) = Eff_QFI_HD(Nj, Ntraj, Tfinal, dt; kwargs... )
 
     Evaluate the continuous-time FI and QFI of a final strong measurement for the
-    estimation of the frequency ω with continuous monitoring of each half-spin
-    particle affected by noise at an angle θ, with efficiency η using SME
+    estimation of the frequency ω with continuous homodyne monitoring of 
+    collective transverse noise, with each half-spin particle affected by 
+    parallel noise, with efficiency η using SME
     (stochastic master equation).
 
-    The function returns a tuple `(t, FI, QFI)` containing the time vector and the
-    vectors containing the FI and average QFI
+    The function returns a NamedTuple `(t, FI, QFI)` containing the time vector and the vectors containing the FI and average QFI
 
     # Arguments
 
     * `Nj`: number of spins
     * `Ntraj`: number of trajectories for the SSE
     * `Tfinal`: final time of evolution
-    * `measurement = :pd` measurement (either `:pd` or `:hd`)
     * `dt`: timestep of the evolution
-    * `κ = 1`: the noise coupling
-    * `θ = 0`: noise angle (0 parallel, π/2 transverse)
+    * `κ = 1`: the independent noise coupling
+    * `κcoll = 1`: the collective noise coupling
     * `ω = 0`: local value of the frequency
     * `η = 1`: measurement efficiency
     """
-    function Eff_QFI(args::Dict{String, Any})
-        kwargs = map(x -> (Symbol(x[1]), x[2]), collect(args))
-        @show kwargs
-        tic()
-        (t, fi, qfi) = Eff_QFI(; kwargs...)
-        eval_time = toc()
-        return merge(args, Dict("t" => t, "fi" => fi,"qfi" => qfi, "eval_time" => eval_time))
-    end
+    function Eff_QFI_HD(
+        Nj::Int64, # Number of spins
+        Ntraj::Int64,                    # Number of trajectories
+        Tfinal::Real,                    # Final time
+        dt::Real;                        # Time step
+        κ::Real = 1.,                    # Independent noise strength
+        κcoll::Real = 1.,                # Collective noise strength
+        ω::Real = 0.0,                   # Frequency of the Hamiltonian
+        η::Real = 1.
+    )
+    
+    θ = 0
+    # ω is the parameter that we want to estimate
+    H = ω * σ(:z, Nj) / 2       # Hamiltonian of the spin system
 
-    function Eff_QFI(; Nj=1,        # Number of spins
-                    Ntraj=1,        # Number of trajectories
-                    Tfinal=1.,      # Final time
-                    dt=0.01,        # Time step
-                    measurement=:pd,# Measurement type
-                    η = 1.,         # Measurement efficiency
-                    κ = 1.,         # Field rate
-                    θ = pi/2,       # Angle of the noise
-                    ω = 1.,         # Magnetic field
-                    _watherver...)
+    dH = σ(:z, Nj) / 2          # Derivative of H wrt the parameter ω
 
-            if measurement == :pd
-                if η == 1.
-                    f = Eff_QFI_PD_pure
-                else
-                    f = Eff_QFI_PD
-                end
-            elseif measurement == :hd
-                if η == 1.
-                    f = Eff_QFI_HD_pure
-                else
-                    f = Eff_QFI_HD
-                end
-            else
-                throw(ArgumentError("Measurement must be either :pd or :hd"))
-            end
+    #non_monitored_noise_op = []
+    non_monitored_noise_op = (sqrt(κ/2) *
+        [(cos(θ) * σ_j(:z, j, Nj) + sin(θ) * σ_j(:x, j, Nj)) for j = 1:Nj])
 
-            if η == 1.
-                f(Nj, Ntraj, Tfinal, dt;
-                    κ = κ,
-                    θ = θ,
-                    ω = ω)
-            else
-                f(Nj, Ntraj, Tfinal, dt;
-                κ = κ,
-                θ = θ,
-                ω = ω,
-                η = η)
-            end
+    monitored_noise_op = [sqrt(κcoll/2) * σ(:x, Nj)]
 
+    res = Eff_QFI_HD(Ntraj,# Number of trajectories
+        Tfinal,                                  # Final time
+        dt,                               # Time step
+        H, dH,                          # Hamiltonian and its derivative wrt ω
+        non_monitored_noise_op,           # Non monitored noise operators
+        monitored_noise_op;                 # Monitored noise operators
+        initial_state = coherent_state,
+        η=η)
+
+    return res 
     end
 end
