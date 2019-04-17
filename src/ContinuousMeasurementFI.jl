@@ -57,7 +57,7 @@ module ContinuousMeasurementFI
     include("Molmer_QFI.jl")
     include("Uncond_qfi_transverse.jl")
 
-    include("Eff_QFI_HD_dicke.jl")
+    include("Eff_QFI_HD_Dicke.jl")
     include("Eff_QFI_HD.jl")
 
     """
