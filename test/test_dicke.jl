@@ -18,7 +18,7 @@ using Random
         seed = 20
 
         Random.seed!(seed)
-        @time res_dicke = Eff_QFI_HD_dicke(Nj, Ntraj,# Number of trajectories
+        @time res_dicke = Eff_QFI_HD_Dicke(Nj, Ntraj,# Number of trajectories
                 Tfinal,                              # Final time
                 dt;                                  # Time step
                 κ = κ_ind,

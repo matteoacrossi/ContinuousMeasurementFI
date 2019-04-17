@@ -12,7 +12,7 @@ function Unconditional_QFI_Dicke(Nj::Int64, Tfinal::Real, dt::Real;
 end
 
 """
-    (t, FI, QFI) = Eff_QFI_HD_dicke(Nj, Ntraj, Tfinal, dt; kwargs... )
+    (t, FI, QFI) = Eff_QFI_HD_Dicke(Nj, Ntraj, Tfinal, dt; kwargs... )
 
 Evaluate the continuous-time FI and QFI of a final strong measurement for the
 estimation of the frequency ω with continuous homodyne monitoring of 
@@ -33,7 +33,7 @@ The function returns a tuple `(t, FI, QFI)` containing the time vector and the v
 * `ω = 0`: local value of the frequency
 * `η = 1`: measurement efficiency
 """
-function Eff_QFI_HD_dicke(Nj::Int64, # Number of spins
+function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
     Ntraj::Int64,                    # Number of trajectories
     Tfinal::Real,                    # Final time
     dt::Real;                        # Time step
@@ -43,24 +43,29 @@ function Eff_QFI_HD_dicke(Nj::Int64, # Number of spins
     η::Real = 1.)                    # Measurement efficiency
 
     to = TimerOutput()
-    
+    @timeit to "Preparation" begin    
     Ntime = Int(floor(Tfinal/dt)) # Number of timesteps
     
-    # Spin operators
-    (Jx, Jy, Jz) = tosparse.( piqs.jspin(Nj))
+    @timeit to "PIQS" begin
+        # Spin operators
+        (Jx, Jy, Jz) = tosparse.( piqs.jspin(Nj))
+
+        sys = piqs.Dicke(Nj)
+        sys.dephasing = 2.
+        
+        liouvillian = tosparse(sys.liouvillian())
+        indprepost = liouvillian - I / 4.
+
+        ρ0 = Matrix(tosparse(piqs.css(Nj)))[:]
+    end
+
     Jx2 = Jx^2
     Jy2 = Jy^2
     Jz2 = Jz^2
-
+    @timeit to "op creation" begin
     Jxprepost = sup_pre_post(Jx)
     Jxpre = sup_pre(Jx)
 
-    sys = piqs.Dicke(Nj)
-    sys.dephasing = 2.
-    
-    liouvillian = tosparse(sys.liouvillian())
-    indprepost = liouvillian - I / 4.
-    
     dW() = sqrt(dt) * randn() # Define the Wiener increment
 
     H = ω * Jz
@@ -79,11 +84,10 @@ function Eff_QFI_HD_dicke(Nj::Int64, # Number of spins
 
     # Initial state of the system
     # is a spin coherent state |++...++>
-    ρ0 = Matrix(tosparse(piqs.css(Nj)))[:]
     
     t = (1 : Ntime) * dt
-
-    dys = similar(t)
+    end
+    end
     # Run evolution for each trajectory, and build up the average
     # for FI and final strong measurement QFI
     @timeit to "trajectories" begin
@@ -111,7 +115,7 @@ function Eff_QFI_HD_dicke(Nj::Int64, # Number of spins
 
             # Homodyne current (Eq. 35)
             @timeit to "current" dy = 2 * sqrt(2 * κcoll * η) * trace(Jxpre*ρ) * dt + dW()
-            dys[jt] = real(dy)
+            
             # Kraus operator Eq. (36)
             @timeit to "op creation" begin
                 M = (M0 + sqrt(2 * η * κcoll) * Jx * dy +

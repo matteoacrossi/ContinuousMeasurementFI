@@ -49,7 +49,7 @@ module ContinuousMeasurementFI
     export Molmer_QFI_GHZ, Molmer_qfi_transverse, uncond_QFI_transverse
     export Unconditional_QFI, Unconditional_QFI_Dicke
     export Eff_QFI_HD 
-    export Eff_QFI_HD_dicke
+    export Eff_QFI_HD_Dicke
 
     include("NoiseOperators.jl")
     include("States.jl")
