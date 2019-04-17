@@ -2,7 +2,7 @@ using ZChop # For chopping small imaginary parts in ρ
 using Distributed
 using TimerOutputs
 
-
+ 
 function Unconditional_QFI_Dicke(Nj::Int64, Tfinal::Real, dt::Real;
     κ::Real = 1.,                    # Independent noise strength
     κcoll::Real = 1.,                # Collective noise strength
@@ -120,20 +120,21 @@ function Eff_QFI_HD_dicke(Nj::Int64, # Number of spins
             @timeit to "sup creation" Mpre = sup_pre(M)
             @timeit to "sup creation" Mpost = sup_post(M')
 
-            jx[jt] = real(trace(sup_pre(Jx) * ρ))
-            jy[jt] = real(trace(sup_pre(Jy) * ρ))
-            jz[jt] = real(trace(sup_pre(Jz) * ρ))
+            @timeit to "Exp values" begin
+                jx[jt] = real(trace(sup_pre(Jx) * ρ))
+                jy[jt] = real(trace(sup_pre(Jy) * ρ))
+                jz[jt] = real(trace(sup_pre(Jz) * ρ))
 
-            jx2[jt] = real(trace(sup_pre(Jx2) * ρ))
-            jy2[jt] = real(trace(sup_pre(Jy2) * ρ))
-            jz2[jt] = real(trace(sup_pre(Jz2) * ρ))
-
+                jx2[jt] = real(trace(sup_pre(Jx2) * ρ))
+                jy2[jt] = real(trace(sup_pre(Jy2) * ρ))
+                jz2[jt] = real(trace(sup_pre(Jz2) * ρ))
+            end
             #@info "Eigvals" eigvals(Hermitian(Matrix(reshape(ρ, size(Jx)))))[1]
             @timeit to "dynamics" begin
                 # Evolve the density operator
                 new_ρ = (Mpre * Mpost * ρ +
                         (1 - η) * dt * 2 * κcoll * Jxprepost * ρ +
-                        dt  * κ * indprepost * ρ)
+                        dt * 2 * κ * indprepost * ρ)
                 
                 zchop!(new_ρ) # Round off elements smaller than 1e-14
 
@@ -142,7 +143,7 @@ function Eff_QFI_HD_dicke(Nj::Int64, # Number of spins
                 # Evolve the unnormalized derivative wrt ω            
                 τ = (Mpre * (Mpost * τ  +  dMpost * ρ) + dMpre * Mpost * ρ +
                     (1 - η) * dt * 2 * κcoll * Jxprepost * τ +
-                    dt * κ * indprepost * τ )/ tr_ρ;
+                    dt * 2 * κ * indprepost * τ )/ tr_ρ;
 
                 zchop!(τ) # Round off elements smaller than 1e-14
 
@@ -173,7 +174,7 @@ function Eff_QFI_HD_dicke(Nj::Int64, # Number of spins
 
     return (t=t, 
             FI=result[:,1] / Ntraj, 
-            QFI=result[:,2] / Ntraj, 
+            QFI=result[:,2] / Ntraj, timer=to,
             jx=jx, jy=jy, jz=jz,
             Δjx=Δjx, Δjy=Δjy, Δjz=Δjz)
 end

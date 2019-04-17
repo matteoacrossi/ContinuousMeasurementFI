@@ -46,9 +46,9 @@ using Random
                 @warn "Relative error QFI high" er_QFI
         end
 
-        @test res_dicke.FI ≈ res_sup.FI rtol=1e-2 atol=1e-5
-        @test res_dicke.QFI ≈ res_sup.QFI rtol=1e-2 atol=1e-5
-        @test res_dicke.jx ≈ res_sup.jx rtol=1e-2 atol=1e-5
-        @test res_dicke.jy ≈ res_sup.jy rtol=1e-2 atol=1e-5
-        @test res_dicke.jz ≈ res_sup.jz rtol=1e-2 atol=1e-5
+        @test res_dicke.FI ≈ res_sup.FI rtol=1e-2 atol=dt
+        @test res_dicke.QFI ≈ res_sup.QFI rtol=1e-2 atol=dt
+        @test res_dicke.jx ≈ res_sup.jx rtol=1e-2 atol=dt
+        @test res_dicke.jy ≈ res_sup.jy rtol=1e-2 atol=dt
+        @test res_dicke.jz ≈ res_sup.jz rtol=1e-2 atol=dt
 end
