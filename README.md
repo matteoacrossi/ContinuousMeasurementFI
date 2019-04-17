@@ -31,7 +31,7 @@ result_uncond = Unconditional_QFI_Dicke(3, 2., 0.001)
 ```
 
 This will produce the following plot
-```
+```julia
 using Plots
 plot(result.t, result.FI, label="FI")
 plot!(result.t, result.FI + result.QFI, label="Eff. QFI")
