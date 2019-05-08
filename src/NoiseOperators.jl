@@ -15,13 +15,17 @@ function σ_j(direction::Symbol, j::Int, n::Int)
     @assert j <= n "j must be less or equal than n"
 
     sigma = Dict(:x => sparse([0im 1.; 1. 0.] ),
-             :y => sparse([0. -1im; 1im 0.]),
-             :z => sparse([1. 0im; 0. -1.]))
+        :y => sparse([0. -1im; 1im 0.]),
+        :z => sparse([1. 0im; 0. -1.]))
 
-    return kron(
+    if n == 1
+        return sigma[direction]
+    else
+        return kron(
             vcat([SparseMatrixCSC{ComplexF64}(I, 2, 2) for i = j + 1:n],
                 [sigma[direction]],
                 [SparseMatrixCSC{ComplexF64}(I, 2, 2) for i = 1:j-1])...)
+    end
 end
 
 
