@@ -51,10 +51,10 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
         (Jx, Jy, Jz) = tosparse.( piqs.jspin(Nj))
 
         sys = piqs.Dicke(Nj)
-        sys.dephasing = 2.
+        sys.dephasing = 4.
         
         liouvillian = tosparse(sys.liouvillian())
-        indprepost = liouvillian - I / 4.
+        indprepost = liouvillian + Nj*I
 
         ρ0 = Matrix(tosparse(piqs.css(Nj)))[:]
     end
@@ -138,7 +138,7 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
                 # Evolve the density operator
                 new_ρ = (Mpre * Mpost * ρ +
                         (1 - η) * dt * 2 * κcoll * Jxprepost * ρ +
-                        dt * 2 * κ * indprepost * ρ)
+                        dt * (κ/2) * indprepost * ρ)
                 
                 zchop!(new_ρ) # Round off elements smaller than 1e-14
 
@@ -147,7 +147,7 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
                 # Evolve the unnormalized derivative wrt ω            
                 τ = (Mpre * (Mpost * τ  +  dMpost * ρ) + dMpre * Mpost * ρ +
                     (1 - η) * dt * 2 * κcoll * Jxprepost * τ +
-                    dt * 2 * κ * indprepost * τ )/ tr_ρ;
+                    dt * (κ/2) * indprepost * τ )/ tr_ρ;
 
                 zchop!(τ) # Round off elements smaller than 1e-14
 
