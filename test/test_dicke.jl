@@ -5,6 +5,7 @@ using Test
 using Random
 
 @testset "Dicke basis" begin
+    @testset "Nj = $Nj" for Nj in 1:5
         Ntraj = 1
         Tfinal = 1.0
         dt = 0.001
@@ -13,7 +14,7 @@ using Random
         θ = 0. # Angle of the independent noise (θ = 0 : parallel)
         ω = .1
         η = 1.0
-        Nj = 3
+        #Nj = 5
 
         seed = 20
 
@@ -37,6 +38,7 @@ using Random
                 
         er_FI = maximum(abs.(res_dicke.FI - res_sup.FI) ./ res_sup.FI)
 
+        #println(er_FI)
         if er_FI > 1e-3
                 @warn "Relative error FI high" er_FI
         end
@@ -46,9 +48,13 @@ using Random
                 @warn "Relative error QFI high" er_QFI
         end
 
-        @test res_dicke.FI ≈ res_sup.FI rtol=1e-2 atol=dt
-        @test res_dicke.QFI ≈ res_sup.QFI rtol=1e-2 atol=dt
-        @test res_dicke.jx ≈ res_sup.jx rtol=1e-2 atol=dt
-        @test res_dicke.jy ≈ res_sup.jy rtol=1e-2 atol=dt
-        @test res_dicke.jz ≈ res_sup.jz rtol=1e-2 atol=dt
+        #println(er_QFI)
+
+        rtol = 1e-8
+        @test res_dicke.FI ≈ res_sup.FI rtol=rtol atol=dt^2
+        @test res_dicke.QFI ≈ res_sup.QFI rtol=rtol atol=dt^2
+        @test res_dicke.jx ≈ res_sup.jx rtol=rtol atol=dt^2
+        @test res_dicke.jy ≈ res_sup.jy rtol=rtol atol=dt^2
+        @test res_dicke.jz ≈ res_sup.jz rtol=rtol atol=dt^2
+    end
 end
