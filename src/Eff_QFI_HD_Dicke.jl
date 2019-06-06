@@ -3,8 +3,9 @@ using Distributed
 using TimerOutputs
 
 
+"""Prova cambio"""
+"""Prova2"""
 
- 
 function Unconditional_QFI_Dicke(Nj::Int64, Tfinal::Real, dt::Real;
     κ::Real = 1.,                    # Independent noise strength
     κcoll::Real = 1.,                # Collective noise strength
