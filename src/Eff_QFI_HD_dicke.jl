@@ -8,7 +8,7 @@ function Unconditional_QFI_Dicke(Nj::Int64, Tfinal::Real, dt::Real;
     κcoll::Real = 1.,                # Collective noise strength
     ω::Real = 0.0                   # Frequency of the Hamiltonian
     )            
-    return Eff_QFI_HD_dicke(Nj, 1, Tfinal, dt; κ=κ, κcoll = κcoll, ω=ω, η=0.0)
+    return Eff_QFI_HD_Dicke(Nj, 1, Tfinal, dt; κ=κ, κcoll = κcoll, ω=ω, η=0.0)
 end
 
 """

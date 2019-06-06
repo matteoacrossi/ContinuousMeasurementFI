@@ -106,11 +106,11 @@ module ContinuousMeasurementFI
     monitored_noise_op = [sqrt(κcoll/2) * σ(:x, Nj)]
 
     res = Eff_QFI_HD(Ntraj,# Number of trajectories
-        Tfinal,                                  # Final time
+        Tfinal,                           # Final time
         dt,                               # Time step
-        H, dH,                          # Hamiltonian and its derivative wrt ω
+        H, dH,                            # Hamiltonian and its derivative wrt ω
         non_monitored_noise_op,           # Non monitored noise operators
-        monitored_noise_op;                 # Monitored noise operators
+        monitored_noise_op;               # Monitored noise operators
         initial_state = coherent_state,
         η=η)
 
