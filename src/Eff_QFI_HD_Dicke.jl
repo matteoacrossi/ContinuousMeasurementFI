@@ -2,6 +2,8 @@ using ZChop # For chopping small imaginary parts in ρ
 using Distributed
 using TimerOutputs
 
+
+
  
 function Unconditional_QFI_Dicke(Nj::Int64, Tfinal::Real, dt::Real;
     κ::Real = 1.,                    # Independent noise strength
