@@ -39,18 +39,18 @@ using Random
         er_FI = maximum(abs.(res_dicke.FI - res_sup.FI) ./ res_sup.FI)
 
         #println(er_FI)
-        if er_FI > 1e-3
+        if er_FI > 1e-8
                 @warn "Relative error FI high" er_FI
         end
 
         er_QFI = maximum(abs.(res_dicke.QFI - res_sup.QFI) ./ res_sup.QFI)
-        if er_QFI > 1e-3
+        if er_QFI > 1e-8
                 @warn "Relative error QFI high" er_QFI
         end
 
         #println(er_QFI)
 
-        rtol = 1e-8
+        rtol = 1e-6
         @test res_dicke.FI ≈ res_sup.FI rtol=rtol atol=dt^2
         @test res_dicke.QFI ≈ res_sup.QFI rtol=rtol atol=dt^2
         @test res_dicke.jx ≈ res_sup.jx rtol=rtol atol=dt^2
