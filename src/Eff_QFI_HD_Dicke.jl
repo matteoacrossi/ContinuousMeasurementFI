@@ -114,7 +114,7 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
         for jt = 1 : Ntime
 
             # Homodyne current (Eq. 35)
-            @timeit to "current" dy = 2 * sqrt(κcoll * η) * trace(Jxpre*ρ) * dt + dW()
+            @timeit to "current" dy = 2 * sqrt(κcoll * η) * trace(Jypre*ρ) * dt + dW()
             
             # Kraus operator Eq. (36)
             @timeit to "op creation" begin
