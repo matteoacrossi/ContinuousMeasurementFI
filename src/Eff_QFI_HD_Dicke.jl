@@ -63,8 +63,8 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
     Jy2 = Jy^2
     Jz2 = Jz^2
     @timeit to "op creation" begin
-    Jxprepost = sup_pre_post(Jx)
-    Jxpre = sup_pre(Jx)
+    Jyprepost = sup_pre_post(Jy)
+    Jypre = sup_pre(Jy)
 
     dW() = sqrt(dt) * randn() # Define the Wiener increment
 
@@ -74,7 +74,7 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
     # Kraus-like operator, trajectory-independent part
     M0 = sparse(I - 1im * H * dt -
                 0.25 * dt * κ * Nj * I - # The Id comes from the squares of sigmaz_j
-                (κcoll/2) * Jx2 * dt)
+                (κcoll/2) * Jy2 * dt)
 
     # Derivative of the Kraus-like operator wrt to ω
     dM = -1im * dH * dt
@@ -118,8 +118,8 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
             
             # Kraus operator Eq. (36)
             @timeit to "op creation" begin
-                M = (M0 + sqrt(η * κcoll) * Jx * dy +
-                    η * (κcoll/2) * Jx2 * (dy^2 - dt))
+                M = (M0 + sqrt(η * κcoll) * Jy * dy +
+                    η * (κcoll/2) * Jy2 * (dy^2 - dt))
             end
             @timeit to "sup creation" Mpre = sup_pre(M)
             @timeit to "sup creation" Mpost = sup_post(M')
@@ -137,7 +137,7 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
             @timeit to "dynamics" begin
                 # Evolve the density operator
                 new_ρ = (Mpre * Mpost * ρ +
-                        (1 - η) * dt * κcoll * Jxprepost * ρ +
+                        (1 - η) * dt * κcoll * Jyprepost * ρ +
                         dt * (κ/2) * indprepost * ρ)
                 
                 zchop!(new_ρ) # Round off elements smaller than 1e-14
@@ -146,7 +146,7 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
                 #@info "tr_rho" tr_ρ
                 # Evolve the unnormalized derivative wrt ω            
                 τ = (Mpre * (Mpost * τ  +  dMpost * ρ) + dMpre * Mpost * ρ +
-                    (1 - η) * dt * κcoll * Jxprepost * τ +
+                    (1 - η) * dt * κcoll * Jyprepost * τ +
                     dt * (κ/2) * indprepost * τ )/ tr_ρ;
 
                 zchop!(τ) # Round off elements smaller than 1e-14
@@ -161,7 +161,7 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
             FisherT[jt] = real(tr_τ^2)
 
             # We evaluate the QFI for a final strong measurement done at time t
-            @timeit to "QFI" QFisherT[jt] = QFI(reshape(ρ, size(Jx)), reshape(dρ, size(Jx)))
+            @timeit to "QFI" QFisherT[jt] = QFI(reshape(ρ, size(Jy)), reshape(dρ, size(Jy)))
         end
 
         # Use the reduction feature of @distributed for
