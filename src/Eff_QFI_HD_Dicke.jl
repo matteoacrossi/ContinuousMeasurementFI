@@ -2,6 +2,15 @@ using ZChop # For chopping small imaginary parts in ρ
 using Distributed
 using TimerOutputs
 
+function squeezing_param(N, ΔJ1, J2m, J3m)
+    """ 
+        ξ2 = squeezing_param(N, ΔJ1, J2m, J3m)
+
+    Returns the squeezing parameter defined, e.g., 
+    in Phys. Rev. A 65, 061801 (2002).
+    """ 
+    return N * ΔJ1 ./ ( J2m .^2 + J2m .^2)
+end
  
 function Unconditional_QFI_Dicke(Nj::Int64, Tfinal::Real, dt::Real;
     κ::Real = 1.,                    # Independent noise strength
@@ -62,6 +71,7 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
     Jx2 = Jx^2
     Jy2 = Jy^2
     Jz2 = Jz^2
+    
     @timeit to "op creation" begin
     Jyprepost = sup_pre_post(Jy)
     Jypre = sup_pre(Jy)
