@@ -71,7 +71,7 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
     Jx2 = Jx^2
     Jy2 = Jy^2
     Jz2 = Jz^2
-    
+
     @timeit to "op creation" begin
     Jyprepost = sup_pre_post(Jy)
     Jypre = sup_pre(Jy)
@@ -174,21 +174,27 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
             @timeit to "QFI" QFisherT[jt] = QFI(reshape(ρ, size(Jy)), reshape(dρ, size(Jy)))
         end
 
+        xi2 = squeezing_param(Nj, jy2 - jy.^2, jx, jz)
+
         # Use the reduction feature of @distributed for
         # (at the end of each cicle, sum the result to result)
-        hcat(FisherT, QFisherT, jx, jy, jz, jx2, jy2, jz2)
+        hcat(FisherT, QFisherT, jx, jy, jz, jx2, jy2, jz2, xi2)
     end
     end
+
     jx=result[:,3] / Ntraj 
     jy=result[:,4] / Ntraj 
     jz=result[:, 5] / Ntraj
+
     Δjx=result[:,6] / Ntraj - jx.^2
     Δjy=result[:,7] / Ntraj - jy.^2
     Δjz=result[:,8] / Ntraj - jz.^2
+
+    xi2 = result[:, 9] / Ntraj
 
     return (t=t, 
             FI=result[:,1] / Ntraj, 
             QFI=result[:,2] / Ntraj, timer=to,
             jx=jx, jy=jy, jz=jz,
-            Δjx=Δjx, Δjy=Δjy, Δjz=Δjz)
+            Δjx=Δjx, Δjy=Δjy, Δjz=Δjz, xi2=xi2)
 end
