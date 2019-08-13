@@ -52,58 +52,59 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
     η::Real = 1.)                    # Measurement efficiency
 
     to = TimerOutput()
+    
     @timeit to "Preparation" begin    
-    Ntime = Int(floor(Tfinal/dt)) # Number of timesteps
-    
-    @timeit to "PIQS" begin
-        # Spin operators
-        (Jx, Jy, Jz) = tosparse.( piqs.jspin(Nj))
-
-        sys = piqs.Dicke(Nj)
-        sys.dephasing = 4.
+        Ntime = Int(floor(Tfinal/dt)) # Number of timesteps
         
-        liouvillian = tosparse(sys.liouvillian())
-        indprepost = liouvillian + Nj*I
+        @timeit to "PIQS" begin
+            # Spin operators
+            (Jx, Jy, Jz) = tosparse.( piqs.jspin(Nj))
 
-        ρ0 = Matrix(tosparse(piqs.css(Nj)))[:]
-    end
- 
-    Jx2 = Jx^2
-    Jy2 = Jy^2
-    Jz2 = Jz^2
+            sys = piqs.Dicke(Nj)
+            sys.dephasing = 4.
+            
+            liouvillian = tosparse(sys.liouvillian())
+            indprepost = liouvillian + Nj*I
 
-    @timeit to "op creation" begin
-    Jyprepost = sup_pre_post(Jy)
-
-    Jxpre = sup_pre(Jx)
-    Jypre = sup_pre(Jy)
-    Jzpre = sup_pre(Jz)
-
-    Jx2pre = sup_pre(Jx2)
-    Jy2pre = sup_pre(Jy2)
-    Jz2pre = sup_pre(Jz2)
-
-    dW() = sqrt(dt) * randn() # Define the Wiener increment
-
-    H = ω * Jz
-    dH = Jz
-
-    # Kraus-like operator, trajectory-independent part
-    M0 = sparse(I - 1im * H * dt -
-                0.25 * dt * κ * Nj * I - # The Id comes from the squares of sigmaz_j
-                (κcoll/2) * Jy2 * dt)
-
-    # Derivative of the Kraus-like operator wrt to ω
-    dM = -1im * dH * dt
-
-    dMpre = sup_pre(dM)
-    dMpost = sup_post(dM')
-
-    # Initial state of the system
-    # is a spin coherent state |++...++>
+            ρ0 = Matrix(tosparse(piqs.css(Nj)))[:]
+        end
     
-    t = (1 : Ntime) * dt
-    end
+        Jx2 = Jx^2
+        Jy2 = Jy^2
+        Jz2 = Jz^2
+
+        @timeit to "op creation" begin
+            Jyprepost = sup_pre_post(Jy)
+
+            Jxpre = sup_pre(Jx)
+            Jypre = sup_pre(Jy)
+            Jzpre = sup_pre(Jz)
+
+            Jx2pre = sup_pre(Jx2)
+            Jy2pre = sup_pre(Jy2)
+            Jz2pre = sup_pre(Jz2)
+
+            dW() = sqrt(dt) * randn() # Define the Wiener increment
+
+            H = ω * Jz
+            dH = Jz
+
+            # Kraus-like operator, trajectory-independent part
+            M0 = sparse(I - 1im * H * dt -
+                        0.25 * dt * κ * Nj * I - # The Id comes from the squares of sigmaz_j
+                        (κcoll/2) * Jy2 * dt)
+
+            # Derivative of the Kraus-like operator wrt to ω
+            dM = -1im * dH * dt
+
+            dMpre = sup_pre(dM)
+            dMpost = sup_post(dM')
+
+            # Initial state of the system
+            # is a spin coherent state |++...++>
+            
+            t = (1 : Ntime) * dt
+        end
     end
     # Run evolution for each trajectory, and build up the average
     # for FI and final strong measurement QFI
@@ -138,6 +139,7 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
                 M = (M0 + sqrt(η * κcoll) * Jy * dy +
                     η * (κcoll/2) * Jy2 * (dy^2 - dt))
             end
+            
             @timeit to "sup creation" begin
                 Mpre = sup_pre(M)
                 Mpost = sup_post(M')
@@ -152,6 +154,7 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
                 jy2[jt] = real(trace(Jy2pre * ρ))
                 jz2[jt] = real(trace(Jz2pre * ρ))
             end
+
             #@info "Eigvals" eigvals(Hermitian(Matrix(reshape(ρ, size(Jx)))))[1]
             @timeit to "dynamics" begin
                 # Evolve the density operator
