@@ -7,9 +7,9 @@ function squeezing_param(N, ΔJ1, J2m, J3m)
         ξ2 = squeezing_param(N, ΔJ1, J2m, J3m)
 
     Returns the squeezing parameter defined, e.g., 
-    in Phys. Rev. A 65, 061801 (2002).
+    in Phys. Rev. A 65, 061801 (2002), Eq. (1).
     """ 
-    return N * ΔJ1 ./ ( J2m .^2 + J2m .^2)
+    return N * ΔJ1 ./ ( J2m .^2 + J3m .^2)
 end
  
 function Unconditional_QFI_Dicke(Nj::Int64, Tfinal::Real, dt::Real;
@@ -131,8 +131,10 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
                 M = (M0 + sqrt(η * κcoll) * Jy * dy +
                     η * (κcoll/2) * Jy2 * (dy^2 - dt))
             end
-            @timeit to "sup creation" Mpre = sup_pre(M)
-            @timeit to "sup creation" Mpost = sup_post(M')
+            @timeit to "sup creation" begin
+                Mpre = sup_pre(M)
+                Mpost = sup_post(M')
+            end
 
             @timeit to "Exp values" begin
                 jx[jt] = real(trace(sup_pre(Jx) * ρ))
@@ -174,11 +176,13 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
             @timeit to "QFI" QFisherT[jt] = QFI(reshape(ρ, size(Jy)), reshape(dρ, size(Jy)))
         end
 
-        xi2 = squeezing_param(Nj, jy2 - jy.^2, jx, jz)
+        xi2x = squeezing_param(Nj, jx2 - jx.^2, jy, jz)
+        xi2y = squeezing_param(Nj, jy2 - jy.^2, jx, jz)
+        xi2z = squeezing_param(Nj, jz2 - jz.^2, jx, jy)
 
         # Use the reduction feature of @distributed for
         # (at the end of each cicle, sum the result to result)
-        hcat(FisherT, QFisherT, jx, jy, jz, jx2, jy2, jz2, xi2)
+        hcat(FisherT, QFisherT, jx, jy, jz, jx2, jy2, jz2, xi2x, xi2y, xi2z)
     end
     end
 
@@ -190,11 +194,15 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
     Δjy=result[:,7] / Ntraj - jy.^2
     Δjz=result[:,8] / Ntraj - jz.^2
 
-    xi2 = result[:, 9] / Ntraj
+    xi2x = result[:, 9] / Ntraj
+    xi2y = result[:, 10] / Ntraj
+    xi2z = result[:, 11] / Ntraj
 
+    println( "DIoMERDA")
     return (t=t, 
             FI=result[:,1] / Ntraj, 
             QFI=result[:,2] / Ntraj, timer=to,
             jx=jx, jy=jy, jz=jz,
-            Δjx=Δjx, Δjy=Δjy, Δjz=Δjz, xi2=xi2)
+            Δjx=Δjx, Δjy=Δjy, Δjz=Δjz, 
+            xi2x=xi2x, xi2y=xi2y, xi2z=xi2z)
 end
