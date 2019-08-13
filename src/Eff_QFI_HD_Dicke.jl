@@ -198,7 +198,6 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
     xi2y = result[:, 10] / Ntraj
     xi2z = result[:, 11] / Ntraj
 
-    println( "DIoMERDA")
     return (t=t, 
             FI=result[:,1] / Ntraj, 
             QFI=result[:,2] / Ntraj, timer=to,
