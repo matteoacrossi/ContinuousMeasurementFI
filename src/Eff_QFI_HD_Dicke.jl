@@ -67,14 +67,21 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
 
         ρ0 = Matrix(tosparse(piqs.css(Nj)))[:]
     end
-
+ 
     Jx2 = Jx^2
     Jy2 = Jy^2
     Jz2 = Jz^2
 
     @timeit to "op creation" begin
     Jyprepost = sup_pre_post(Jy)
+
+    Jxpre = sup_pre(Jx)
     Jypre = sup_pre(Jy)
+    Jzpre = sup_pre(Jz)
+
+    Jx2pre = sup_pre(Jx2)
+    Jy2pre = sup_pre(Jy2)
+    Jz2pre = sup_pre(Jz2)
 
     dW() = sqrt(dt) * randn() # Define the Wiener increment
 
@@ -137,13 +144,13 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
             end
 
             @timeit to "Exp values" begin
-                jx[jt] = real(trace(sup_pre(Jx) * ρ))
-                jy[jt] = real(trace(sup_pre(Jy) * ρ))
-                jz[jt] = real(trace(sup_pre(Jz) * ρ))
+                jx[jt] = real(trace(Jxpre * ρ))
+                jy[jt] = real(trace(Jypre * ρ))
+                jz[jt] = real(trace(Jzpre * ρ))
 
-                jx2[jt] = real(trace(sup_pre(Jx2) * ρ))
-                jy2[jt] = real(trace(sup_pre(Jy2) * ρ))
-                jz2[jt] = real(trace(sup_pre(Jz2) * ρ))
+                jx2[jt] = real(trace(Jx2pre * ρ))
+                jy2[jt] = real(trace(Jy2pre * ρ))
+                jz2[jt] = real(trace(Jz2pre * ρ))
             end
             #@info "Eigvals" eigvals(Hermitian(Matrix(reshape(ρ, size(Jx)))))[1]
             @timeit to "dynamics" begin
