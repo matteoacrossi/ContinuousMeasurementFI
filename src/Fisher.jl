@@ -11,16 +11,22 @@ This function is the implementation of Eq. (13) in Paris, Int. J. Quantum Inform
     * `dhro`: Derivative wrt the parameter to be estimated
     * `abstol = 1e-5`: tolerance in the denominator of the formula
 """
-function QFI(ρ, dρ; abstol = 1e-5)
+function QFI4(ρ, dρ; abstol = 1e-5)
     # Get the eigenvalues and eigenvectors of the density matrix
     # We enforce its Hermiticity so that the algorithm is more efficient and returns real values
     
-    eigval, eigvec = eigen(Hermitian(Matrix(zchop(ρ,1e-10))))
+    eigval, eigvec = eigen(Hermitian(Matrix(zchop(ρ, 1e-10))))
     
     dim = length(eigval)
-    res = real(2*sum( [( (eigval[n] + eigval[m] > abstol) ?
-             (1. / (eigval[n] + eigval[m])) * abs(eigvec[:,n]' * dρ * eigvec[:,m])^2 
-             : 0.) for n=1:dim, m=1:dim]))
-    
+    res = 0.
+    tmp = 0.
+    for m = 1:dim
+        for n = 1:dim
+            tmp = eigval[n] + eigval[m]
+            if tmp > abstol
+                @views res += 2 * (1. / tmp) * abs(eigvec[:,n]' * dρ * eigvec[:,m])^2
+            end
+        end
+    end
     return res
 end
