@@ -53,6 +53,9 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
 
     to = TimerOutput()
     
+    @info "Eff_QFI_HD_Dicke starting"
+    @info "Parameters" Nj Ntraj Tfinal dt κ κcoll ω η  
+
     @timeit to "Preparation" begin    
         Ntime = Int(floor(Tfinal/dt)) # Number of timesteps
         
@@ -189,6 +192,10 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
         xi2x = squeezing_param(Nj, jx2 - jx.^2, jy, jz)
         xi2y = squeezing_param(Nj, jy2 - jy.^2, jx, jz)
         xi2z = squeezing_param(Nj, jz2 - jz.^2, jx, jy)
+
+        if ktraj % 100 == 0
+            @info "$(ktraj) trajectories done"
+        end
 
         # Use the reduction feature of @distributed for
         # (at the end of each cicle, sum the result to result)
