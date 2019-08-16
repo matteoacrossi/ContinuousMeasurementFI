@@ -215,9 +215,10 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
     xi2y = result[:, 10] / Ntraj
     xi2z = result[:, 11] / Ntraj
 
+    @info "Time details\n$to"
     return (t=t, 
             FI=result[:,1] / Ntraj, 
-            QFI=result[:,2] / Ntraj, timer=to,
+            QFI=result[:,2] / Ntraj, 
             jx=jx, jy=jy, jz=jz,
             Δjx=Δjx, Δjy=Δjy, Δjz=Δjz, 
             xi2x=xi2x, xi2y=xi2y, xi2z=xi2z)
