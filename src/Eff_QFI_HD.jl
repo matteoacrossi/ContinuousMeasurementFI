@@ -115,14 +115,6 @@ function Eff_QFI_HD(Ntraj::Int64,       # Number of trajectories
                 sqrt(η) * sum([Cj[j] * dy[j] for j = 1:Nm]) +
                 η/2 * sum([CjProd[i,j] *(dy[i] * dy[j] - (i == j ? dt : 0)) for i = 1:Nm, j = 1:Nm])
 
-            jx[jt] = real(tr(σ(:x, Nj) / 2. * ρ))
-            jy[jt] = real(tr(σ(:y, Nj) / 2. * ρ))
-            jz[jt] = real(tr(σ(:z, Nj) / 2. * ρ))
-
-            jx2[jt] = real(tr(σ(:x, Nj)^2 / 4. * ρ))
-            jy2[jt] = real(tr(σ(:y, Nj)^2 / 4. * ρ))
-            jz2[jt] = real(tr(σ(:z, Nj)^2 / 4. * ρ))
-
             # Evolve the density operator
             new_ρ = M * ρ * M' +
                      (1 - η) * dt * sum([C * ρ * C' for C in Cj]) +
@@ -145,6 +137,15 @@ function Eff_QFI_HD(Ntraj::Int64,       # Number of trajectories
             # Now we can renormalize ρ and its derivative wrt ω
             ρ = new_ρ / tr_ρ
             dρ = τ - tr_τ * ρ
+
+
+            jx[jt] = real(tr(σ(:x, Nj) / 2. * ρ))
+            jy[jt] = real(tr(σ(:y, Nj) / 2. * ρ))
+            jz[jt] = real(tr(σ(:z, Nj) / 2. * ρ))
+
+            jx2[jt] = real(tr(σ(:x, Nj)^2 / 4. * ρ))
+            jy2[jt] = real(tr(σ(:y, Nj)^2 / 4. * ρ))
+            jz2[jt] = real(tr(σ(:z, Nj)^2 / 4. * ρ))
 
             # We evaluate the classical FI for the continuous measurement
             FisherT[jt] = real(tr_τ^2)
