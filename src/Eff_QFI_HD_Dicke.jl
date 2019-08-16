@@ -41,6 +41,7 @@ The function returns a tuple `(t, FI, QFI)` containing the time vector and the v
 * `κcoll = 1`: the collective noise coupling
 * `ω = 0`: local value of the frequency
 * `η = 1`: measurement efficiency
+* `outsteps = 1`: save output every outsteps (QFI is expensive!)
 """
 function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
     Ntraj::Int64,                    # Number of trajectories
@@ -49,7 +50,8 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
     κ::Real = 1.,                    # Independent noise strength
     κcoll::Real = 1.,                # Collective noise strength
     ω::Real = 0.0,                   # Frequency of the Hamiltonian
-    η::Real = 1.)                    # Measurement efficiency
+    η::Real = 1.,                    # Measurement efficiency
+    outsteps = 1)                    
 
     to = TimerOutput()
     
@@ -107,6 +109,7 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
             # is a spin coherent state |++...++>
             
             t = (1 : Ntime) * dt
+            t = t[outsteps:outsteps:end]
         end
     end
     # Run evolution for each trajectory, and build up the average
@@ -121,21 +124,22 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
         τ = dρ
 
         jx = similar(t)
-        jy = similar(jx)
-        jz = similar(jx)
+        jy = similar(t)
+        jz = similar(t)
 
-        jx2 = similar(jx)
-        jy2 = similar(jy)
-        jz2 = similar(jz)
+        jx2 = similar(t)
+        jy2 = similar(t)
+        jz2 = similar(t)
 
         # Vectors for the FI and QFI for each trajectory
-        FisherT = zero(t)
-        QFisherT = zero(t)
+        FisherT = similar(t)
+        QFisherT = similar(t)
 
+        jto = 1 # Counter for the output
         for jt = 1 : Ntime
 
             # Homodyne current (Eq. 35)
-            @timeit to "current" dy = 2 * sqrt(κcoll * η) * trace(Jypre*ρ) * dt + dW()
+            dy = 2 * sqrt(κcoll * η) * trace(Jypre*ρ) * dt + dW()
             
             # Kraus operator Eq. (36)
             @timeit to "op creation" begin
@@ -146,16 +150,6 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
             @timeit to "sup creation" begin
                 Mpre = sup_pre(M)
                 Mpost = sup_post(M')
-            end
-
-            @timeit to "Exp values" begin
-                jx[jt] = real(trace(Jxpre * ρ))
-                jy[jt] = real(trace(Jypre * ρ))
-                jz[jt] = real(trace(Jzpre * ρ))
-
-                jx2[jt] = real(trace(Jx2pre * ρ))
-                jy2[jt] = real(trace(Jy2pre * ρ))
-                jz2[jt] = real(trace(Jz2pre * ρ))
             end
 
             #@info "Eigvals" eigvals(Hermitian(Matrix(reshape(ρ, size(Jx)))))[1]
@@ -182,11 +176,25 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
                 ρ = new_ρ / tr_ρ
                 dρ = τ - tr_τ * ρ
             end
-            # We evaluate the classical FI for the continuous measurement
-            FisherT[jt] = real(tr_τ^2)
 
-            # We evaluate the QFI for a final strong measurement done at time t
-            @timeit to "QFI" QFisherT[jt] = QFI(reshape(ρ, size(Jy)), reshape(dρ, size(Jy)))
+            if jt % outsteps == 0
+                @timeit to "Output" begin
+                    jx[jto] = real(trace(Jxpre * ρ))
+                    jy[jto] = real(trace(Jypre * ρ))
+                    jz[jto] = real(trace(Jzpre * ρ))
+
+                    jx2[jto] = real(trace(Jx2pre * ρ))
+                    jy2[jto] = real(trace(Jy2pre * ρ))
+                    jz2[jto] = real(trace(Jz2pre * ρ))
+
+                    # We evaluate the classical FI for the continuous measurement
+                    FisherT[jto] = real(tr_τ^2)
+                    # We evaluate the QFI for a final strong measurement done at time t
+                    @timeit to "QFI" QFisherT[jto] = QFI(reshape(ρ, size(Jy)), reshape(dρ, size(Jy)))
+
+                    jto += 1
+                end
+            end
         end
 
         xi2x = squeezing_param(Nj, jx2 - jx.^2, jy, jz)
@@ -215,7 +223,7 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
     xi2y = result[:, 10] / Ntraj
     xi2z = result[:, 11] / Ntraj
 
-    @info "Time details\n$to"
+    @info "Time details \n$to"
     return (t=t, 
             FI=result[:,1] / Ntraj, 
             QFI=result[:,2] / Ntraj, 
