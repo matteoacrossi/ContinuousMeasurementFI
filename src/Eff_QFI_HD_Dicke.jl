@@ -11,6 +11,10 @@ function squeezing_param(N, ΔJ1, J2m, J3m)
     """ 
     return N * ΔJ1 ./ ( J2m .^2 + J3m .^2)
 end
+
+function density(s)
+    return length(s.nzval) / (s.n * s.m)
+end
  
 function Unconditional_QFI_Dicke(Nj::Int64, Tfinal::Real, dt::Real;
     κ::Real = 1.,                    # Independent noise strength
@@ -78,6 +82,9 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
         Jy2 = Jy^2
         Jz2 = Jz^2
 
+        @info "Size of ρ: $(length(ρ0))"
+        @info "Density of noise superoperator: $(density(indprepost))"
+
         @timeit to "op creation" begin
             Jyprepost = sup_pre_post(Jy)
 
@@ -99,6 +106,8 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
                         0.25 * dt * κ * Nj * I - # The Id comes from the squares of sigmaz_j
                         (κcoll/2) * Jy2 * dt)
 
+            @info "Density of M0: $(density(M0))"
+
             # Derivative of the Kraus-like operator wrt to ω
             dM = -1im * dH * dt
 
@@ -107,6 +116,7 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
 
             tmp = ((1 - η) * dt * κcoll * Jyprepost +
                   dt * (κ/2) * indprepost)
+
             # Initial state of the system
             # is a spin coherent state |++...++>
             
