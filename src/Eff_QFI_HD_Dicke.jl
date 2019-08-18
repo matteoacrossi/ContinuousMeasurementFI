@@ -105,6 +105,8 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
             dMpre = sup_pre(dM)
             dMpost = sup_post(dM')
 
+            tmp = ((1 - η) * dt * κcoll * Jyprepost +
+                  dt * (κ/2) * indprepost)
             # Initial state of the system
             # is a spin coherent state |++...++>
             
@@ -156,8 +158,7 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
             @timeit to "dynamics" begin
                 # Evolve the density operator
                 new_ρ = (Mpre * Mpost * ρ +
-                        (1 - η) * dt * κcoll * Jyprepost * ρ +
-                        dt * (κ/2) * indprepost * ρ)
+                        tmp * ρ)
                 
                 zchop!(new_ρ) # Round off elements smaller than 1e-14
 
@@ -165,8 +166,7 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
                 #@info "tr_rho" tr_ρ
                 # Evolve the unnormalized derivative wrt ω            
                 τ = (Mpre * (Mpost * τ  +  dMpost * ρ) + dMpre * Mpost * ρ +
-                    (1 - η) * dt * κcoll * Jyprepost * τ +
-                    dt * (κ/2) * indprepost * τ )/ tr_ρ;
+                    tmp * τ )/ tr_ρ;
 
                 zchop!(τ) # Round off elements smaller than 1e-14
 
