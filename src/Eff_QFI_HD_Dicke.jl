@@ -207,9 +207,13 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
             end
         end
 
-        xi2x = squeezing_param(Nj, jx2 - jx.^2, jy, jz)
-        xi2y = squeezing_param(Nj, jy2 - jy.^2, jx, jz)
-        xi2z = squeezing_param(Nj, jz2 - jz.^2, jx, jy)
+        Δjx2 = jx2 - jx.^2
+        Δjy2 = jy2 - jy.^2
+        Δjz2 = jz2 - jz.^2
+        
+        xi2x = squeezing_param(Nj, Δjx2, jy, jz)
+        xi2y = squeezing_param(Nj, Δjy2, jx, jz)
+        xi2z = squeezing_param(Nj, Δjz2, jx, jy)
 
         if ktraj % 100 == 0
             @info "$(ktraj) trajectories done"
@@ -217,17 +221,17 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
 
         # Use the reduction feature of @distributed for
         # (at the end of each cicle, sum the result to result)
-        hcat(FisherT, QFisherT, jx, jy, jz, jx2, jy2, jz2, xi2x, xi2y, xi2z)
+        hcat(FisherT, QFisherT, jx, jy, jz, Δjx2, Δjy2, Δjz2, xi2x, xi2y, xi2z)
     end
     end
 
-    jx=result[:,3] / Ntraj 
-    jy=result[:,4] / Ntraj 
-    jz=result[:, 5] / Ntraj
+    jx = result[:,3] / Ntraj 
+    jy = result[:,4] / Ntraj 
+    jz = result[:,5] / Ntraj
 
-    Δjx=result[:,6] / Ntraj - jx.^2
-    Δjy=result[:,7] / Ntraj - jy.^2
-    Δjz=result[:,8] / Ntraj - jz.^2
+    Δjx2 = result[:,6] / Ntraj
+    Δjy2 = result[:,7] / Ntraj
+    Δjz2 = result[:,8] / Ntraj 
 
     xi2x = result[:, 9] / Ntraj
     xi2y = result[:, 10] / Ntraj
@@ -238,6 +242,6 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
             FI=result[:,1] / Ntraj, 
             QFI=result[:,2] / Ntraj, 
             jx=jx, jy=jy, jz=jz,
-            Δjx=Δjx, Δjy=Δjy, Δjz=Δjz, 
+            Δjx=Δjx2, Δjy=Δjy2, Δjz=Δjz2, 
             xi2x=xi2x, xi2y=xi2y, xi2z=xi2z)
 end
