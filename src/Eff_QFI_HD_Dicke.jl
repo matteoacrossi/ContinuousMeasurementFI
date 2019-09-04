@@ -9,7 +9,7 @@ function squeezing_param(N, ΔJ1, J2m, J3m)
     Returns the squeezing parameter defined, e.g., 
     in Phys. Rev. A 65, 061801 (2002), Eq. (1).
     """ 
-    return N * ΔJ1 ./ ( J2m .^2 + J3m .^2)
+    return (J2m .^2 + J3m .^2) ./ (N * ΔJ1)
 end
 
 function density(s)
