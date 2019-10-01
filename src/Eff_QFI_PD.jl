@@ -23,7 +23,8 @@ vectors containing the FI and average QFI
 * `ω = 0`: local value of the frequency
 * `η = 1`: measurement efficiency
 """
-function Eff_QFI_PD(Nj::Int64,          # Number of spins
+
+function Eff_QFI_PD(ρ0,                 # Initial state
     Ntraj::Int64,                       # Number of trajectories
     Tfinal::Float64,                    # Final time
     dt::Float64;                        # Time step
@@ -33,8 +34,11 @@ function Eff_QFI_PD(Nj::Int64,          # Number of spins
     η = 1.)                             # Measurement efficiency
 
     Ntime = Int(floor(Tfinal/dt)) # Number of timesteps
-    dimJ = Int(2^Nj)   # Dimension of the corresponding Hilbert space
 
+    dimJ = size(ρ0, 1)
+    Nj = Int(log2(dimJ))
+    @assert dimJ == Int(2^Nj) "Wrong dimensions"
+    
     # Define an array of noise channels
     cj = sqrt(κ/2) *
         [(cos(θ) * σ_j(:z, j, Nj) + sin(θ) * σ_j(:x, j, Nj)) for j = 1:Nj]
@@ -59,67 +63,71 @@ function Eff_QFI_PD(Nj::Int64,          # Number of spins
     pPD = 0.5 * Nj * η * κ * dt;
 
     # Initial state of the system
-    ψ0 = ghz_state(Nj)
-    ρ0 = ψ0 * ψ0'
+    # ψ0 = ghz_state(Nj)
+    # ρ0 = ψ0 * ψ0'
 
     t = (1 : Ntime) * dt
-
+    ρs = zeros(ComplexF64,tuple(size(ρ0)..., Ntime))
     # Run evolution for each trajectory, and build up the average
     # for FI and final strong measurement QFI
-    result = @distributed (+) for ktraj = 1 : Ntraj
-        ρ = ρ0 # Assign initial state to each trajectory
+    #result = @distributed (+) for ktraj = 1 : Ntraj
+    ρ = ρ0 # Assign initial state to each trajectory
 
-        # Derivative of ρ wrt the parameter
-        # Initial state does not depend on the paramter
-        dρ = zero(ρ)
-        τ = dρ
+    # Derivative of ρ wrt the parameter
+    # Initial state does not depend on the paramter
+    dρ = zero(ρ)
+    τ = dρ
 
-        FisherT = zero(t)
-        QFisherT = zero(t)
+    FisherT = zero(t)
+    QFisherT = zero(t)
 
-        for jt=1:Ntime
-            # Has the photon been detected?
-            if (rand() < real(pPD)) # Detected
-                # Choose randomly which channel detected the photon
-                # (with equal probabiltiy)
-                ch = rand(1:Nj)
+    photon_counts = zeros(Ntime, Nj)
 
-                new_ρ = M1[ch] * ρ * M1[ch]' ;
+    for jt=1:Ntime
+        # Has the photon been detected?
+        if (rand() < real(pPD)) # Detected
+            # Choose randomly which channel detected the photon
+            # (with equal probabiltiy)
+            ch = rand(1:Nj)
 
-                zchop!(new_ρ) # Round off elements smaller than 1e-14
-                tr_ρ = real(tr(new_ρ));
+            photon_counts[jt, ch] = 1.
+            new_ρ = M1[ch] * ρ * M1[ch]' ;
 
-                τ = (M1[ch] * (τ * M1[ch]' + ρ * dM1') + dM1 * ρ * M1[ch]') / tr_ρ
+            zchop!(new_ρ) # Round off elements smaller than 1e-14
+            tr_ρ = real(tr(new_ρ));
 
-            else # Not detected
-                new_ρ = M0 * ρ * M0' + (1 - η) * dt * sum([c * ρ * c' for c in cj])
-                zchop!(new_ρ)
+            τ = (M1[ch] * (τ * M1[ch]' + ρ * dM1') + dM1 * ρ * M1[ch]') / tr_ρ
 
-                tr_ρ = real(tr(new_ρ));
+        else # Not detected
+            new_ρ = M0 * ρ * M0' + (1 - η) * dt * sum([c * ρ * c' for c in cj])
+            zchop!(new_ρ)
 
-                τ = (M0 * (τ * M0' + ρ * dM0') + dM0 * ρ * M0' +
-                       (1 - η)* dt * sum([c* τ * c' for c in cj]))/ tr_ρ;
-            end
+            tr_ρ = real(tr(new_ρ));
 
-            zchop!(τ) # Round off elements smaller than 1e-14
-
-            tr_τ = tr(τ)
-
-            # Now we can renormalize ρ and its derivative wrt ω
-            ρ = new_ρ / tr_ρ
-            dρ = τ - tr_τ * ρ
-
-            # We evaluate the classical FI for the continuous measurement
-            FisherT[jt] = real(tr_τ^2)
-
-            # We evaluate the QFI for a final strong measurement done at time t
-            QFisherT[jt] = QFI(ρ, dρ)
+            τ = (M0 * (τ * M0' + ρ * dM0') + dM0 * ρ * M0' +
+                    (1 - η)* dt * sum([c* τ * c' for c in cj]))/ tr_ρ;
         end
+
+        zchop!(τ) # Round off elements smaller than 1e-14
+
+        tr_τ = tr(τ)
+
+        # Now we can renormalize ρ and its derivative wrt ω
+        ρ = new_ρ / tr_ρ
+        dρ = τ - tr_τ * ρ
+
+        # We evaluate the classical FI for the continuous measurement
+        # FisherT[jt] = real(tr_τ^2)
+
+        # We evaluate the QFI for a final strong measurement done at time t
+        #QFisherT[jt] = QFI(ρ, dρ)
+        ρs[:,:,jt] = ρ
+    end
 
         # Use the reduction feature of @distributed for
         # (at the end of each cicle, sum the result to result)
-        hcat(FisherT, QFisherT)
-    end
+    #hcat(FisherT, QFisherT, photon_counts)
+    #end
 
-    return (t, result[:,1] / Ntraj, result[:,2] / Ntraj)
+    return (t, ρs, photon_counts)
 end

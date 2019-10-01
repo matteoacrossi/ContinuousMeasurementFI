@@ -7,7 +7,7 @@ module ContinuousMeasurementFI
     using LinearAlgebra
 
     export Eff_QFI, Molmer_QFI_GHZ, Molmer_qfi_transverse, uncond_QFI_transverse
-
+    
     include("NoiseOperators.jl")
     include("States.jl")
     include("Fisher.jl")
@@ -18,6 +18,8 @@ module ContinuousMeasurementFI
     include("Eff_QFI_PD_pure.jl")
     include("Eff_QFI_HD.jl")
     include("Eff_QFI_HD_pure.jl")
+
+    export σ_j, Eff_QFI_PD, Eff_QFI_HD, ghz_state
 
     """
         (t, FI, QFI) = Eff_QFI(kwargs...)
@@ -60,6 +62,7 @@ module ContinuousMeasurementFI
                     κ = 1.,         # Field rate
                     θ = pi/2,       # Angle of the noise
                     ω = 1.,         # Magnetic field
+                    
                     _watherver...)
 
             if measurement == :pd

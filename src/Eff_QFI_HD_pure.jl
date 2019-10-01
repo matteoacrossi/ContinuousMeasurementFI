@@ -22,7 +22,8 @@ vectors containing the FI and average QFI
 * `θ = 0`: noise angle (0 parallel, π/2 transverse)
 * `ω = 0`: local value of the frequency
 """
-function Eff_QFI_HD_pure(Nj::Int64,     # Number of spins
+function Eff_QFI_HD_pure(ψ0,            # Initial state
+    Nj::Int64,                          # Number of spins
     Ntraj::Int64,                       # Number of trajectories
     Tfinal::Float64,                    # Final time
     dt::Float64;                        # Time step
@@ -60,7 +61,7 @@ function Eff_QFI_HD_pure(Nj::Int64,     # Number of spins
     dM = -1im * dH * dt
 
     # Initial state of the dynamics
-    ψ0 = ghz_state(Nj)
+    # ψ0 = ghz_state(Nj)
 
     # Output time vector
     t = (1 : Ntime) * dt

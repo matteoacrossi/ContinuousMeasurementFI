@@ -23,7 +23,7 @@ vectors containing the FI and average QFI
 * `ω = 0`: local value of the frequency
 * `η = 1`: measurement efficiency
 """
-function Eff_QFI_HD(Nj::Int64,          # Number of spins
+function Eff_QFI_HD(ρ0,                 # Initial state
     Ntraj::Int64,                       # Number of trajectories
     Tfinal::Float64,                    # Final time
     dt::Float64;                        # Time step
@@ -33,10 +33,14 @@ function Eff_QFI_HD(Nj::Int64,          # Number of spins
     η = 1.)                             # Measurement efficiency
 
     Ntime = Int(floor(Tfinal/dt)) # Number of timesteps
-    dimJ = Int(2^Nj)   # Dimension of the corresponding Hilbert space
-
+  
+    dimJ = size(ρ0, 1)
+    Nj = Int(log2(dimJ))
+    @assert dimJ == Int(2^Nj) "Wrong dimensions"
+    
+    ϕ = pi / 2
     # Define an array of noise channels
-    cj = sqrt(κ/2) *
+    cj = exp(1im * ϕ) * sqrt(κ/2) *
         [(cos(θ) * σ_j(:z, j, Nj) + sin(θ) * σ_j(:x, j, Nj)) for j = 1:Nj]
 
     # We store the operators sums for efficiency
@@ -60,68 +64,73 @@ function Eff_QFI_HD(Nj::Int64,          # Number of spins
     dM = -1im * dH * dt
 
     # Initial state of the system
-    ψ0 = ghz_state(Nj)
-    ρ0 = ψ0 * ψ0'
+    # ψ0 = ghz_state(Nj)
+    # ρ0 = ψ0 * ψ0'
 
     t = (1 : Ntime) * dt
 
+    ρs = zeros(ComplexF64,tuple(size(ρ0)..., Ntime))
     # Run evolution for each trajectory, and build up the average
     # for FI and final strong measurement QFI
-    result = @distributed (+) for ktraj = 1 : Ntraj
-        ρ = ρ0 # Assign initial state to each trajectory
+    #result = @distributed (+) for ktraj = 1 : Ntraj
+    ρ = ρ0 # Assign initial state to each trajectory
 
-        # Derivative of ρ wrt the parameter
-        # Initial state does not depend on the paramter
-        dρ = zero(ρ)
-        τ = dρ
+    # Derivative of ρ wrt the parameter
+    # Initial state does not depend on the paramter
+    dρ = zero(ρ)
+    τ = dρ
 
-        # Vectors for the FI and QFI for each trajectory
-        FisherT = zero(t)
-        QFisherT = zero(t)
+    hd_current = zeros(Ntime, Nj)
 
-        for jt = 1 : Ntime
+    # Vectors for the FI and QFI for each trajectory
+    FisherT = zero(t)
+    QFisherT = zero(t)
 
-            # Homodyne current (Eq. 35)
-            dy = dt * sqrt(η) * [tr(ρ * c) for c in cjSum] + dW()
+    for jt = 1 : Ntime
 
-            # Kraus operator Eq. (36)
-            M = M0 +
-                sqrt(η) * sum([cj[j] * dy[j] for j = 1:Nj]) +
-                η/2 * sum([cjProd[i,j] *(dy[i] * dy[j] - (i == j ? dt : 0)) for i = 1:Nj, j = 1:Nj])
+        # Homodyne current (Eq. 35)
+        dy = dW() + 2 * cos(ϕ) * dt * sqrt(η) * [tr(ρ * (c' + c) for c in cjSum]
+        hd_current[jt, :] = dy
+
+        # Kraus operator Eq. (36)
+        M = M0 +
+            sqrt(η) * sum([cj[j] * dy[j] for j = 1:Nj]) +
+            η/2 * sum([cjProd[i,j] *(dy[i] * dy[j] - (i == j ? dt : 0)) for i = 1:Nj, j = 1:Nj])
 
 
-            # Evolve the density operator
-            new_ρ = M * ρ * M' +
-                     (1 - η) * dt * sum([c * ρ * c' for c in cj])
+        # Evolve the density operator
+        new_ρ = M * ρ * M' +
+                    (1 - η) * dt * sum([c * ρ * c' for c in cj])
 
-            zchop!(new_ρ) # Round off elements smaller than 1e-14
+        zchop!(new_ρ) # Round off elements smaller than 1e-14
 
-            tr_ρ = tr(new_ρ)
+        tr_ρ = tr(new_ρ)
 
-            # Evolve the unnormalized derivative wrt ω
-            τ = (M * (τ * M' + ρ * dM') + dM * ρ * M' +
-                   (1 - η)* dt * sum([c * τ * c' for c in cj])
-                  )/ tr_ρ
+        # Evolve the unnormalized derivative wrt ω
+        τ = (M * (τ * M' + ρ * dM') + dM * ρ * M' +
+                (1 - η)* dt * sum([c * τ * c' for c in cj])
+                )/ tr_ρ
 
-            zchop!(τ) # Round off elements smaller than 1e-14
+        zchop!(τ) # Round off elements smaller than 1e-14
 
-            tr_τ = tr(τ)
+        tr_τ = tr(τ)
 
-            # Now we can renormalize ρ and its derivative wrt ω
-            ρ = new_ρ / tr_ρ
-            dρ = τ - tr_τ * ρ
+        # Now we can renormalize ρ and its derivative wrt ω
+        ρ = new_ρ / tr_ρ
+        dρ = τ - tr_τ * ρ
 
-            # We evaluate the classical FI for the continuous measurement
-            FisherT[jt] = real(tr_τ^2)
+        # We evaluate the classical FI for the continuous measurement
+        FisherT[jt] = real(tr_τ^2)
 
-            # We evaluate the QFI for a final strong measurement done at time t
-            QFisherT[jt] = QFI(ρ, dρ)
-        end
+        # We evaluate the QFI for a final strong measurement done at time t
+        QFisherT[jt] = QFI(ρ, dρ)
 
-        # Use the reduction feature of @distributed for
-        # (at the end of each cicle, sum the result to result)
-        hcat(FisherT, QFisherT)
+        ρs[:,:,jt] = ρ
     end
 
-    return (t, result[:,1] / Ntraj, result[:,2] / Ntraj)
+    # Use the reduction feature of @distributed for
+    # (at the end of each cicle, sum the result to result)
+    # hcat(FisherT, QFisherT)
+    
+    return (t, ρs, hd_current, FisherT)
 end
