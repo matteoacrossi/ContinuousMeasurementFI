@@ -89,7 +89,7 @@ function Eff_QFI_HD(ρ0,                 # Initial state
     for jt = 1 : Ntime
 
         # Homodyne current (Eq. 35)
-        dy = dW() + 2 * cos(ϕ) * dt * sqrt(η) * [tr(ρ * (c' + c) for c in cjSum]
+        dy = dW() + cos(ϕ) * dt * sqrt(η) * [tr(ρ * (c' + c)) for c in cjSum]
         hd_current[jt, :] = dy
 
         # Kraus operator Eq. (36)
