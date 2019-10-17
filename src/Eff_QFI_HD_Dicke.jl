@@ -3,8 +3,19 @@ using Distributed
 using TimerOutputs
 
 
-"""Prova cambio"""
-"""Prova2"""
+function squeezing_param(N, ΔJ1, J2m, J3m)
+    """ 
+        ξ2 = squeezing_param(N, ΔJ1, J2m, J3m)
+
+    Returns the squeezing parameter defined, e.g., 
+    in Phys. Rev. A 65, 061801 (2002), Eq. (1).
+    """ 
+    return (J2m .^2 + J3m .^2) ./ (N * ΔJ1)
+end
+
+function density(s)
+    return length(s.nzval) / (s.n * s.m)
+end
 
 function Unconditional_QFI_Dicke(Nj::Int64, Tfinal::Real, dt::Real;
     κ::Real = 1.,                    # Independent noise strength
@@ -35,6 +46,7 @@ The function returns a tuple `(t, FI, QFI)` containing the time vector and the v
 * `κcoll = 1`: the collective noise coupling
 * `ω = 0`: local value of the frequency
 * `η = 1`: measurement efficiency
+* `outsteps = 1`: save output every outsteps (QFI is expensive!)
 """
 function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
     Ntraj::Int64,                    # Number of trajectories
@@ -43,53 +55,75 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
     κ::Real = 1.,                    # Independent noise strength
     κcoll::Real = 1.,                # Collective noise strength
     ω::Real = 0.0,                   # Frequency of the Hamiltonian
-    η::Real = 1.)                    # Measurement efficiency
+    η::Real = 1.,                    # Measurement efficiency
+    outsteps = 1)                    
 
     to = TimerOutput()
+    
+    @info "Eff_QFI_HD_Dicke starting"
+    @info "Parameters" Nj Ntraj Tfinal dt κ κcoll ω η  
+
     @timeit to "Preparation" begin    
-    Ntime = Int(floor(Tfinal/dt)) # Number of timesteps
-    
-    @timeit to "PIQS" begin
-        # Spin operators
-        (Jx, Jy, Jz) = tosparse.( piqs.jspin(Nj))
-
-        sys = piqs.Dicke(Nj)
-        sys.dephasing = 4.
+        Ntime = Int(floor(Tfinal/dt)) # Number of timesteps
         
-        liouvillian = tosparse(sys.liouvillian())
-        indprepost = liouvillian + Nj*I
+        @timeit to "PIQS" begin
+            # Spin operators
+            (Jx, Jy, Jz) = tosparse.( piqs.jspin(Nj))
 
-        ρ0 = Matrix(tosparse(piqs.css(Nj)))[:]
-    end
+            sys = piqs.Dicke(Nj)
+            sys.dephasing = 4.
+            
+            liouvillian = tosparse(sys.liouvillian())
+            indprepost = liouvillian + Nj*I
 
-    Jx2 = Jx^2
-    Jy2 = Jy^2
-    Jz2 = Jz^2
-    @timeit to "op creation" begin
-    Jxprepost = sup_pre_post(Jx)
-    Jxpre = sup_pre(Jx)
-
-    dW() = sqrt(dt) * randn() # Define the Wiener increment
-
-    H = ω * Jz
-    dH = Jz
-
-    # Kraus-like operator, trajectory-independent part
-    M0 = sparse(I - 1im * H * dt -
-                0.25 * dt * κ * Nj * I - # The Id comes from the squares of sigmaz_j
-                κcoll * Jx2 * dt)
-
-    # Derivative of the Kraus-like operator wrt to ω
-    dM = -1im * dH * dt
-
-    dMpre = sup_pre(dM)
-    dMpost = sup_post(dM')
-
-    # Initial state of the system
-    # is a spin coherent state |++...++>
+            ρ0 = Matrix(tosparse(piqs.css(Nj)))[:]
+        end
     
-    t = (1 : Ntime) * dt
-    end
+        Jx2 = Jx^2
+        Jy2 = Jy^2
+        Jz2 = Jz^2
+
+        @info "Size of ρ: $(length(ρ0))"
+        @info "Density of noise superoperator: $(density(indprepost))"
+
+        @timeit to "op creation" begin
+            Jyprepost = sup_pre_post(Jy)
+
+            Jxpre = sup_pre(Jx)
+            Jypre = sup_pre(Jy)
+            Jzpre = sup_pre(Jz)
+
+            Jx2pre = sup_pre(Jx2)
+            Jy2pre = sup_pre(Jy2)
+            Jz2pre = sup_pre(Jz2)
+
+            dW() = sqrt(dt) * randn() # Define the Wiener increment
+
+            H = ω * Jz
+            dH = Jz
+
+            # Kraus-like operator, trajectory-independent part
+            M0 = sparse(I - 1im * H * dt -
+                        0.25 * dt * κ * Nj * I - # The Id comes from the squares of sigmaz_j
+                        (κcoll/2) * Jy2 * dt)
+
+            @info "Density of M0: $(density(M0))"
+
+            # Derivative of the Kraus-like operator wrt to ω
+            dM = -1im * dH * dt
+
+            dMpre = sup_pre(dM)
+            dMpost = sup_post(dM')
+
+            tmp = ((1 - η) * dt * κcoll * Jyprepost +
+                  dt * (κ/2) * indprepost)
+
+            # Initial state of the system
+            # is a spin coherent state |++...++>
+            
+            t = (1 : Ntime) * dt
+            t = t[outsteps:outsteps:end]
+        end
     end
     # Run evolution for each trajectory, and build up the average
     # for FI and final strong measurement QFI
@@ -103,45 +137,39 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
         τ = dρ
 
         jx = similar(t)
-        jy = similar(jx)
-        jz = similar(jx)
+        jy = similar(t)
+        jz = similar(t)
 
-        jx2 = similar(jx)
-        jy2 = similar(jy)
-        jz2 = similar(jz)
+        jx2 = similar(t)
+        jy2 = similar(t)
+        jz2 = similar(t)
 
         # Vectors for the FI and QFI for each trajectory
-        FisherT = zero(t)
-        QFisherT = zero(t)
+        FisherT = similar(t)
+        QFisherT = similar(t)
 
+        jto = 1 # Counter for the output
         for jt = 1 : Ntime
 
             # Homodyne current (Eq. 35)
-            @timeit to "current" dy = 2 * sqrt(2 * κcoll * η) * trace(Jxpre*ρ) * dt + dW()
+            dy = 2 * sqrt(κcoll * η) * trace(Jypre*ρ) * dt + dW()
             
             # Kraus operator Eq. (36)
             @timeit to "op creation" begin
-                M = (M0 + sqrt(2 * η * κcoll) * Jx * dy +
-                    η * κcoll * Jx2 * (dy^2 - dt))
+                M = (M0 + sqrt(η * κcoll) * Jy * dy +
+                    η * (κcoll/2) * Jy2 * (dy^2 - dt))
             end
-            @timeit to "sup creation" Mpre = sup_pre(M)
-            @timeit to "sup creation" Mpost = sup_post(M')
-
-            @timeit to "Exp values" begin
-                jx[jt] = real(trace(sup_pre(Jx) * ρ))
-                jy[jt] = real(trace(sup_pre(Jy) * ρ))
-                jz[jt] = real(trace(sup_pre(Jz) * ρ))
-
-                jx2[jt] = real(trace(sup_pre(Jx2) * ρ))
-                jy2[jt] = real(trace(sup_pre(Jy2) * ρ))
-                jz2[jt] = real(trace(sup_pre(Jz2) * ρ))
+            
+            @timeit to "sup creation" begin
+                Mpre = sup_pre(M)
+                Mpost = sup_post(M')
             end
+
             #@info "Eigvals" eigvals(Hermitian(Matrix(reshape(ρ, size(Jx)))))[1]
             @timeit to "dynamics" begin
                 # Evolve the density operator
                 new_ρ = (Mpre * Mpost * ρ +
-                        (1 - η) * dt * 2 * κcoll * Jxprepost * ρ +
-                        dt * (κ/2) * indprepost * ρ)
+                        tmp * ρ)
                 
                 zchop!(new_ρ) # Round off elements smaller than 1e-14
 
@@ -149,8 +177,7 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
                 #@info "tr_rho" tr_ρ
                 # Evolve the unnormalized derivative wrt ω            
                 τ = (Mpre * (Mpost * τ  +  dMpost * ρ) + dMpre * Mpost * ρ +
-                    (1 - η) * dt * 2 * κcoll * Jxprepost * τ +
-                    dt * (κ/2) * indprepost * τ )/ tr_ρ;
+                    tmp * τ )/ tr_ρ;
 
                 zchop!(τ) # Round off elements smaller than 1e-14
 
@@ -160,28 +187,62 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
                 ρ = new_ρ / tr_ρ
                 dρ = τ - tr_τ * ρ
             end
-            # We evaluate the classical FI for the continuous measurement
-            FisherT[jt] = real(tr_τ^2)
 
-            # We evaluate the QFI for a final strong measurement done at time t
-            @timeit to "QFI" QFisherT[jt] = QFI(reshape(ρ, size(Jx)), reshape(dρ, size(Jx)))
+            if jt % outsteps == 0
+                @timeit to "Output" begin
+                    jx[jto] = real(trace(Jxpre * ρ))
+                    jy[jto] = real(trace(Jypre * ρ))
+                    jz[jto] = real(trace(Jzpre * ρ))
+
+                    jx2[jto] = real(trace(Jx2pre * ρ))
+                    jy2[jto] = real(trace(Jy2pre * ρ))
+                    jz2[jto] = real(trace(Jz2pre * ρ))
+
+                    # We evaluate the classical FI for the continuous measurement
+                    FisherT[jto] = real(tr_τ^2)
+                    # We evaluate the QFI for a final strong measurement done at time t
+                    @timeit to "QFI" QFisherT[jto] = QFI(reshape(ρ, size(Jy)), reshape(dρ, size(Jy)))
+
+                    jto += 1
+                end
+            end
+        end
+
+        Δjx2 = jx2 - jx.^2
+        Δjy2 = jy2 - jy.^2
+        Δjz2 = jz2 - jz.^2
+        
+        xi2x = squeezing_param(Nj, Δjx2, jy, jz)
+        xi2y = squeezing_param(Nj, Δjy2, jx, jz)
+        xi2z = squeezing_param(Nj, Δjz2, jx, jy)
+
+        if ktraj % 100 == 0
+            @info "$(ktraj) trajectories done"
         end
 
         # Use the reduction feature of @distributed for
         # (at the end of each cicle, sum the result to result)
-        hcat(FisherT, QFisherT, jx, jy, jz, jx2, jy2, jz2)
+        hcat(FisherT, QFisherT, jx, jy, jz, Δjx2, Δjy2, Δjz2, xi2x, xi2y, xi2z)
     end
     end
-    jx=result[:,3] / Ntraj 
-    jy=result[:,4] / Ntraj 
-    jz=result[:, 5] / Ntraj
-    Δjx=result[:,6] / Ntraj - jx.^2
-    Δjy=result[:,7] / Ntraj - jy.^2
-    Δjz=result[:,8] / Ntraj - jz.^2
 
+    jx = result[:,3] / Ntraj 
+    jy = result[:,4] / Ntraj 
+    jz = result[:,5] / Ntraj
+
+    Δjx2 = result[:,6] / Ntraj
+    Δjy2 = result[:,7] / Ntraj
+    Δjz2 = result[:,8] / Ntraj 
+
+    xi2x = result[:, 9] / Ntraj
+    xi2y = result[:, 10] / Ntraj
+    xi2z = result[:, 11] / Ntraj
+
+    @info "Time details \n$to"
     return (t=t, 
             FI=result[:,1] / Ntraj, 
-            QFI=result[:,2] / Ntraj, timer=to,
+            QFI=result[:,2] / Ntraj, 
             jx=jx, jy=jy, jz=jz,
-            Δjx=Δjx, Δjy=Δjy, Δjz=Δjz)
+            Δjx=Δjx2, Δjy=Δjy2, Δjz=Δjz2, 
+            xi2x=xi2x, xi2y=xi2y, xi2z=xi2z)
 end

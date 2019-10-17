@@ -101,9 +101,9 @@ module ContinuousMeasurementFI
 
     #non_monitored_noise_op = []
     non_monitored_noise_op = (sqrt(κ/2) *
-        [(cos(θ) * σ_j(:z, j, Nj) + sin(θ) * σ_j(:x, j, Nj)) for j = 1:Nj])
+        [(cos(θ) * σ_j(:z, j, Nj) + sin(θ) * σ_j(:y, j, Nj)) for j = 1:Nj])
 
-    monitored_noise_op = [sqrt(κcoll/2) * σ(:x, Nj)]
+    monitored_noise_op = [sqrt(κcoll) * σ(:y, Nj)/2]
 
     res = Eff_QFI_HD(Ntraj,# Number of trajectories
         Tfinal,                           # Final time
