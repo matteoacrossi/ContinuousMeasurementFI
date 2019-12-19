@@ -10,7 +10,7 @@ module ContinuousMeasurementFI
     function __init__()
         # The commands below import the modules, and make sure that they Arguments
         # installed using Conda.jl
-]        copy!(qutip, pyimport_conda("matplotlib", "matplotlib"))
+        copy!(qutip, pyimport_conda("matplotlib", "matplotlib"))
         copy!(qutip, pyimport_conda("qutip", "qutip", "conda-forge"))
         copy!(piqs, pyimport_conda("qutip.piqs", "qutip", "conda-forge"))
         copy!(sp, pyimport_conda("scipy.sparse", "scipy"))
