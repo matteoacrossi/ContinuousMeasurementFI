@@ -10,30 +10,31 @@ module ContinuousMeasurementFI
     function __init__()
         # The commands below import the modules, and make sure that they Arguments
         # installed using Conda.jl
+        copy!(qutip, pyimport_conda("matplotlib", "matplotlib"))
         copy!(qutip, pyimport_conda("qutip", "qutip", "conda-forge"))
         copy!(piqs, pyimport_conda("qutip.piqs", "qutip", "conda-forge"))
         copy!(sp, pyimport_conda("scipy.sparse", "scipy"))
-        
+
         # This is the function to get data from the python sparse matrix
         py"""
         import scipy.sparse as sp
         import numpy as np
         import qutip
-    
+
         def sparse_to_ijv(sparsematrix):
             # If a Qobj, get the sparse representation
             if isinstance(sparsematrix, qutip.Qobj):
                 sparsematrix = sparsematrix.data
-    
+
             # Get the shape of the sparse matrix
             (m, n) = sparsematrix.shape
-    
+
             # Get the row and column incides of the nonzero elements
             I, J = sparsematrix.nonzero()
-    
+
             # Get the vector of values
             V = np.array([sparsematrix[i,j] for (i,j) in zip(I,J)])
-            
+
             # Convert to 1-based indexing
             I += 1
             J += 1
@@ -48,7 +49,7 @@ module ContinuousMeasurementFI
 
     export Molmer_QFI_GHZ, Molmer_qfi_transverse, uncond_QFI_transverse
     export Unconditional_QFI, Unconditional_QFI_Dicke
-    export Eff_QFI_HD 
+    export Eff_QFI_HD
     export Eff_QFI_HD_Dicke
 
     include("NoiseOperators.jl")
@@ -64,8 +65,8 @@ module ContinuousMeasurementFI
         (t, FI, QFI) = Eff_QFI_HD(Nj, Ntraj, Tfinal, dt; kwargs... )
 
     Evaluate the continuous-time FI and QFI of a final strong measurement for the
-    estimation of the frequency ω with continuous homodyne monitoring of 
-    collective transverse noise, with each half-spin particle affected by 
+    estimation of the frequency ω with continuous homodyne monitoring of
+    collective transverse noise, with each half-spin particle affected by
     parallel noise, with efficiency η using SME
     (stochastic master equation).
 
@@ -92,7 +93,7 @@ module ContinuousMeasurementFI
         ω::Real = 0.0,                   # Frequency of the Hamiltonian
         η::Real = 1.
     )
-    
+
     θ = 0
     # ω is the parameter that we want to estimate
     H = ω * σ(:z, Nj) / 2       # Hamiltonian of the spin system
@@ -114,6 +115,6 @@ module ContinuousMeasurementFI
         initial_state = coherent_state,
         η=η)
 
-    return res 
+    return res
     end
 end
