@@ -126,10 +126,10 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
     end
 
     result = zeros(length(t), 11)
+    trajectories_count = Threads.Atomic{Int}(0)
+
     # Run evolution for each trajectory, and build up the average
     # for FI and final strong measurement QFI
-    trajectories_count = 0
-
     @timeit to "trajectories" begin
     Threads.@threads for ktraj = 1 : Ntraj
         ρ = ρ0 # Assign initial state to each trajectory
@@ -214,11 +214,13 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
         xi2y = squeezing_param(Nj, Δjy2, jx, jz)
         xi2z = squeezing_param(Nj, Δjz2, jx, jy)
 
-        trajectories_count += 1
+        Threads.atomic_add!(trajectories_count, 1)
 
-        if trajectories_count % 100 == 0
-            @info "$(ktraj) trajectories done"
+        #Threads.lock(l)
+        if trajectories_count[] % 10 == 0
+            @info "$(trajectories_count[]) trajectories done"
         end
+        #Threads.unlock(l)
 
         result += hcat(FisherT, QFisherT, jx, jy, jz, Δjx2, Δjy2, Δjz2, xi2x, xi2y, xi2z)
     end
