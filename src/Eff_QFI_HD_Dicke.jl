@@ -128,6 +128,8 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
     # traj_count = 0
     # Run evolution for each trajectory, and build up the average
     # for FI and final strong measurement QFI
+
+
     @timeit to "trajectories" begin
     result = @showprogress 1 "Computing..." @distributed (+) for ktraj = 1 : Ntraj
         ρ = ρ0 # Assign initial state to each trajectory
@@ -136,11 +138,15 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
         # Initial state does not depend on the paramter
         dρ = zero(ρ)
         τ = dρ
-        new_ρ = similar(ρ)
 
-        tmp1 = similar(τ)
-        tmp2 = similar(τ)
+        # Temporarily store the new density operator
+        new_ρ = similar(ρ0)
 
+        # Allocate auxiliary variables
+        tmp1 = similar(ρ0)
+        tmp2 = similar(ρ0)
+
+        # Output variables
         jx = similar(t)
         jy = similar(t)
         jz = similar(t)
@@ -149,16 +155,17 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
         jy2 = similar(t)
         jz2 = similar(t)
 
-        # Vectors for the FI and QFI for each trajectory
         FisherT = similar(t)
         QFisherT = similar(t)
 
         jto = 1 # Counter for the output
         for jt = 1 : Ntime
+            @timeit to "current" begin
 
+            mul!(tmp1, Jypre, ρ)
             # Homodyne current (Eq. 35)
-            dy = 2 * sqrt(κcoll * η) * trace(Jypre*ρ) * dt + dW()
-
+            dy = 2 * sqrt(κcoll * η) * trace(tmp1) * dt + dW()
+            end
             # Kraus operator Eq. (36)
             @timeit to "op creation" begin
                 M = (M0 + sqrt(η * κcoll) * Jy * dy +
@@ -174,16 +181,23 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
             @timeit to "dynamics" begin
                 # Evolve the density operator
                 @timeit to "new_ρ" begin
+                # Non-allocating code for
+                # new_ρ = Mpre * Mpost * ρ + second_term * ρ
                 mul!(tmp1, Mpost, ρ)
                 mul!(new_ρ, Mpre, tmp1)
                 mul!(new_ρ, second_term, ρ, 1., 1.)
                 end
+
                 zchop!(new_ρ) # Round off elements smaller than 1e-14
 
                 tr_ρ = trace(new_ρ)
                 #@info "tr_rho" tr_ρ
                 # Evolve the unnormalized derivative wrt ω
+
                 @timeit to "tau" begin
+                # Non-allocating code for
+                # τ = (Mpre * (Mpost * τ  +  dMpost * ρ) + dMpre * Mpost * ρ +
+                #      tmp * τ )/ tr_ρ;
                 mul!(tmp1, Mpost, τ)
                 mul!(tmp2, Mpre, tmp1)
                 mul!(tmp2, second_term, τ, 1., 1.)
