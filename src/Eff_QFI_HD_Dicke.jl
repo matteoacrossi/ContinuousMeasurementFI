@@ -114,7 +114,7 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
             dMpre = sup_pre(dM)
             dMpost = sup_post(dM')
 
-            tmp = ((1 - η) * dt * κcoll * Jyprepost +
+            second_term = ((1 - η) * dt * κcoll * Jyprepost +
                   dt * (κ/2) * indprepost)
 
             # Initial state of the system
@@ -137,10 +137,10 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
         dρ = zero(ρ)
         τ = dρ
         new_ρ = similar(ρ)
-        τtmp = similar(τ)
-        tmp1 = similar(τ)
 
-        tmp2 = tmp
+        tmp1 = similar(τ)
+        tmp2 = similar(τ)
+
         jx = similar(t)
         jy = similar(t)
         jz = similar(t)
@@ -168,15 +168,15 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
             @timeit to "sup creation" begin
                 @timeit to "pre" Mpre = sup_pre(M)
                 @timeit to "post" Mpost = sup_post(M')
-                @timeit to "prepost" Mpreposttmp = sup_pre_post(M)
             end
 
             #@info "Eigvals" eigvals(Hermitian(Matrix(reshape(ρ, size(Jx)))))[1]
             @timeit to "dynamics" begin
                 # Evolve the density operator
                 @timeit to "new_ρ" begin
-                mul!(new_ρ, Mpreposttmp, ρ)
-                mul!(new_ρ, tmp, ρ, 1., 1.)
+                mul!(tmp1, Mpost, ρ)
+                mul!(new_ρ, Mpre, tmp1)
+                mul!(new_ρ, second_term, ρ, 1., 1.)
                 end
                 zchop!(new_ρ) # Round off elements smaller than 1e-14
 
@@ -184,14 +184,17 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
                 #@info "tr_rho" tr_ρ
                 # Evolve the unnormalized derivative wrt ω
                 @timeit to "tau" begin
-                mul!(τtmp, Mpreposttmp, τ)
-                mul!(τtmp, tmp, τ, 1., 1.)
+                mul!(tmp1, Mpost, τ)
+                mul!(tmp2, Mpre, tmp1)
+                mul!(tmp2, second_term, τ, 1., 1.)
+
                 mul!(tmp1, dMpost, ρ)
                 mul!(τ, Mpre, tmp1)
-                τ .+= τtmp
+                τ .+= tmp2
+
                 mul!(tmp1, Mpost, ρ)
-                mul!(τtmp, dMpre, tmp1)
-                τ .+= τtmp
+                mul!(tmp2, dMpre, tmp1)
+                τ .+= tmp2
                 τ ./= tr_ρ
                 end
                 zchop!(τ) # Round off elements smaller than 1e-14
