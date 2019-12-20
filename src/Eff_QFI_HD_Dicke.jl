@@ -137,7 +137,7 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
         dρ = zero(ρ)
         τ = dρ
         new_ρ = similar(ρ)
-
+        tmp2 = tmp
         jx = similar(t)
         jy = similar(t)
         jz = similar(t)
@@ -172,8 +172,7 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
             @timeit to "dynamics" begin
                 # Evolve the density operator
                 @timeit to "new_ρ" begin
-                Mprepost += tmp
-                mul!(new_ρ, Mprepost, ρ)
+                mul!(new_ρ, Mprepost + tmp, ρ)
                 end
                 zchop!(new_ρ) # Round off elements smaller than 1e-14
 
