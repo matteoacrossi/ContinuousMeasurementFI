@@ -43,3 +43,12 @@ plot!(result_uncond.t, result_uncond.QFI, label="Uncond. QFI")
 
 `result` also contains the expectation values for the global operators `jx`, `jy`, `jz` and their variances `Δjx`, `Δjy`, `Δjz`,
 and a `timer` object showing detailed timing information.
+
+## Known issues
+If you obtain the following error when importing `ContinuousMeasurementFI`:
+
+    /usr/bin/../lib64/libstdc++.so.6: version `CXXABI_1.3.9' not found 
+    
+run the following before starting Julia:
+
+    export LD_PRELOAD=/home/matros/.julia/conda/3/lib/libstdc++.so
