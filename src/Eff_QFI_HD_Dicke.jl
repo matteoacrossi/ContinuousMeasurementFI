@@ -63,10 +63,12 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
     @info "Eff_QFI_HD_Dicke starting"
     @info "Parameters" Nj Ntraj Tfinal dt κ κcoll ω η
 
-    @timeit to "Preparation" begin
+    dW() = sqrt(dt) * randn() # Define the Wiener increment
+
+    @timeit_debug to "Preparation" begin
         Ntime = Int(floor(Tfinal/dt)) # Number of timesteps
 
-        @timeit to "PIQS" begin
+        @timeit_debug to "PIQS" begin
             # Spin operators
             (Jx, Jy, Jz) = tosparse.( piqs.jspin(Nj))
 
@@ -86,7 +88,7 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
         @info "Size of ρ: $(length(ρ0))"
         @info "Density of noise superoperator: $(density(indprepost))"
 
-        @timeit to "op creation" begin
+        @timeit_debug to "op creation" begin
             Jyprepost = sup_pre_post(Jy)
 
             Jxpre = sup_pre(Jx)
@@ -97,7 +99,6 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
             Jy2pre = sup_pre(Jy2)
             Jz2pre = sup_pre(Jz2)
 
-            dW() = sqrt(dt) * randn() # Define the Wiener increment
 
             H = ω * Jz
             dH = Jz
@@ -129,7 +130,7 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
     # traj_count = 0
     # Run evolution for each trajectory, and build up the average
     # for FI and final strong measurement QFI
-    @timeit to "trajectories" begin
+    @timeit_debug to "trajectories" begin
     result = @showprogress 1 "Computing..." @distributed (+) for ktraj = 1 : Ntraj
         ρ = ρ0 # Assign initial state to each trajectory
 
@@ -157,18 +158,18 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
             dy = 2 * sqrt(κcoll * η) * trace(Jypre*ρ) * dt + dW()
 
             # Kraus operator Eq. (36)
-            @timeit to "op creation" begin
+            @timeit_debug to "op creation" begin
                 M = (M0 + sqrt(η * κcoll) * Jy * dy +
                     η * (κcoll/2) * Jy2 * (dy^2 - dt))
             end
 
-            @timeit to "sup creation" begin
+            @timeit_debug to "sup creation" begin
                 Mpre = sup_pre(M)
                 Mpost = sup_post(M')
             end
 
             #@info "Eigvals" eigvals(Hermitian(Matrix(reshape(ρ, size(Jx)))))[1]
-            @timeit to "dynamics" begin
+            @timeit_debug to "dynamics" begin
                 # Evolve the density operator
                 new_ρ = (Mpre * Mpost * ρ +
                         tmp * ρ)
@@ -191,7 +192,7 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
             end
 
             if jt % outsteps == 0
-                @timeit to "Output" begin
+                @timeit_debug to "Output" begin
                     jx[jto] = real(trace(Jxpre * ρ))
                     jy[jto] = real(trace(Jypre * ρ))
                     jz[jto] = real(trace(Jzpre * ρ))
@@ -203,7 +204,7 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
                     # We evaluate the classical FI for the continuous measurement
                     FisherT[jto] = real(tr_τ^2)
                     # We evaluate the QFI for a final strong measurement done at time t
-                    @timeit to "QFI" QFisherT[jto] = QFI(reshape(ρ, size(Jy)), reshape(dρ, size(Jy)))
+                    @timeit_debug to "QFI" QFisherT[jto] = QFI(reshape(ρ, size(Jy)), reshape(dρ, size(Jy)))
 
                     jto += 1
                 end
