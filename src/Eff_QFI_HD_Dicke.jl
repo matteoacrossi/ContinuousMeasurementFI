@@ -62,6 +62,8 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
     @info "Eff_QFI_HD_Dicke starting"
     @info "Parameters" Nj Ntraj Tfinal dt κ κcoll ω η
 
+    dW() = sqrt(dt) * randn() # Define the Wiener increment
+
     @timeit_debug to "Preparation" begin
         Ntime = Int(floor(Tfinal/dt)) # Number of timesteps
 
@@ -84,8 +86,6 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
 
         @info "Size of ρ: $(length(ρ0))"
         @info "Density of noise superoperator: $(density(indprepost))"
-
-        dW() = sqrt(dt) * randn() # Define the Wiener increment
 
         @timeit_debug to "op creation" begin
             Jyprepost = sup_pre_post(Jy)
