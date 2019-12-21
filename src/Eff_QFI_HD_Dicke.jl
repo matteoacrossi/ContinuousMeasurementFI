@@ -170,7 +170,7 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
             #@info "Eigvals" eigvals(Hermitian(Matrix(reshape(ρ, size(Jx)))))[1]
             @timeit to "dynamics" begin
                 # Evolve the density operator
-                @timeit to "new_rho" new_ρ = (Mpre * Mpost * ρ +
+                new_ρ = (Mpre * Mpost * ρ +
                         tmp * ρ)
 
                 zchop!(new_ρ) # Round off elements smaller than 1e-14
@@ -178,7 +178,7 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
                 tr_ρ = trace(new_ρ)
                 #@info "tr_rho" tr_ρ
                 # Evolve the unnormalized derivative wrt ω
-                @timeit to "tau" τ = (Mpre * (Mpost * τ  +  dMpost * ρ) + dMpre * Mpost * ρ +
+                τ = (Mpre * (Mpost * τ  +  dMpost * ρ) + dMpre * Mpost * ρ +
                     tmp * τ )/ tr_ρ;
 
                 zchop!(τ) # Round off elements smaller than 1e-14
