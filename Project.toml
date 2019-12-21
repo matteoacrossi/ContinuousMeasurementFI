@@ -1,7 +1,7 @@
 name = "ContinuousMeasurementFI"
 uuid = "0cf28d70-a90b-11e8-0416-0fb7e42d9e6f"
 authors = ["Matteo Rossi <teo.red90@gmail.com>"]
-version = "0.1.2"
+version = "0.1.3"
 
 [deps]
 Distributed = "8ba89e20-285c-5b6f-9357-94700520ee1b"
