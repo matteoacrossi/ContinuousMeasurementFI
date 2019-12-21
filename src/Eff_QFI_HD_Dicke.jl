@@ -162,8 +162,8 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
         for jt = 1 : Ntime
             @timeit to "current" begin
 
-            mul!(tmp1, Jypre, ρ)
             # Homodyne current (Eq. 35)
+            mul!(tmp1, Jypre, ρ)
             dy = 2 * sqrt(κcoll * η) * trace(tmp1) * dt + dW()
             end
             # Kraus operator Eq. (36)
@@ -173,28 +173,25 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
             end
 
             @timeit to "sup creation" begin
-                @timeit to "pre" Mpre = sup_pre(M)
-                @timeit to "post" Mpost = sup_post(M')
+                Mpre = sup_pre(M)
+                Mpost = sup_post(M')
             end
 
             #@info "Eigvals" eigvals(Hermitian(Matrix(reshape(ρ, size(Jx)))))[1]
             @timeit to "dynamics" begin
                 # Evolve the density operator
-                @timeit to "new_ρ" begin
                 # Non-allocating code for
                 # new_ρ = Mpre * Mpost * ρ + second_term * ρ
                 mul!(tmp1, Mpost, ρ)
                 mul!(new_ρ, Mpre, tmp1)
                 mul!(new_ρ, second_term, ρ, 1., 1.)
-                end
 
                 zchop!(new_ρ) # Round off elements smaller than 1e-14
 
                 tr_ρ = trace(new_ρ)
-                #@info "tr_rho" tr_ρ
+
                 # Evolve the unnormalized derivative wrt ω
 
-                @timeit to "tau" begin
                 # Non-allocating code for
                 # τ = (Mpre * (Mpost * τ  +  dMpost * ρ) + dMpre * Mpost * ρ +
                 #      tmp * τ )/ tr_ρ;
@@ -210,14 +207,18 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
                 mul!(tmp2, dMpre, tmp1)
                 τ .+= tmp2
                 τ ./= tr_ρ
-                end
+
                 zchop!(τ) # Round off elements smaller than 1e-14
 
                 tr_τ = trace(τ)
 
                 # Now we can renormalize ρ and its derivative wrt ω
-                @timeit to "rho_upd" ρ = new_ρ / tr_ρ
-                @timeit to "drho_upd" dρ = τ - tr_τ * ρ
+                ρ = new_ρ
+                ρ ./= tr_ρ
+
+                dρ = τ
+                dρ -= tr_τ * ρ
+
             end
 
             if jt % outsteps == 0
