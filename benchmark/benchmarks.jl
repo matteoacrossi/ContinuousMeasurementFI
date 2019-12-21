@@ -12,6 +12,6 @@ const SUITE = BenchmarkGroup()
 Eff_QFI_HD_Dicke(2, 1, .01, 0.001);
 
 # Add some benchmarks to the "trig" group
-for n in (8, 10, 15, 20)
-    SUITE[n] = @benchmarkable Eff_QFI_HD_Dicke($n, 1, .2, 0.001, outsteps=10)
+for n in (15, 20, 25, 30)
+    SUITE[n] = @benchmarkable Eff_QFI_HD_Dicke($n, 1, .5, 0.001, outsteps=50)
 end
