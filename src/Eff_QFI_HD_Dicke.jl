@@ -56,9 +56,8 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
     κcoll::Real = 1.,                # Collective noise strength
     ω::Real = 0.0,                   # Frequency of the Hamiltonian
     η::Real = 1.,                    # Measurement efficiency
-    outsteps = 1)
-
-    to = TimerOutput()
+    outsteps = 1,
+    to = TimerOutput())
 
     @info "Eff_QFI_HD_Dicke starting"
     @info "Parameters" Nj Ntraj Tfinal dt κ κcoll ω η
@@ -116,7 +115,7 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
             dMpre = sup_pre(dM)
             dMpost = sup_post(dM')
 
-            tmp = ((1 - η) * dt * κcoll * Jyprepost +
+            second_term = ((1 - η) * dt * κcoll * Jyprepost +
                   dt * (κ/2) * indprepost)
 
             # Initial state of the system
@@ -139,6 +138,14 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
         dρ = zero(ρ)
         τ = dρ
 
+        # Temporarily store the new density operator
+        new_ρ = similar(ρ0)
+
+        # Allocate auxiliary variables
+        tmp1 = similar(ρ0)
+        tmp2 = similar(ρ0)
+
+        # Output variables
         jx = similar(t)
         jy = similar(t)
         jz = similar(t)
@@ -147,16 +154,17 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
         jy2 = similar(t)
         jz2 = similar(t)
 
-        # Vectors for the FI and QFI for each trajectory
         FisherT = similar(t)
         QFisherT = similar(t)
 
         jto = 1 # Counter for the output
         for jt = 1 : Ntime
+            @timeit_debug to "current" begin
 
             # Homodyne current (Eq. 35)
-            dy = 2 * sqrt(κcoll * η) * trace(Jypre*ρ) * dt + dW()
-
+            mul!(tmp1, Jypre, ρ)
+            dy = 2 * sqrt(κcoll * η) * trace(tmp1) * dt + dW()
+            end
             # Kraus operator Eq. (36)
             @timeit_debug to "op creation" begin
                 M = (M0 + sqrt(η * κcoll) * Jy * dy +
@@ -171,24 +179,45 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
             #@info "Eigvals" eigvals(Hermitian(Matrix(reshape(ρ, size(Jx)))))[1]
             @timeit_debug to "dynamics" begin
                 # Evolve the density operator
-                new_ρ = (Mpre * Mpost * ρ +
-                        tmp * ρ)
+                # Non-allocating code for
+                # new_ρ = Mpre * Mpost * ρ + second_term * ρ
+                mul!(tmp1, Mpost, ρ)
+                mul!(new_ρ, Mpre, tmp1)
+                mul!(new_ρ, second_term, ρ, 1., 1.)
 
                 zchop!(new_ρ) # Round off elements smaller than 1e-14
 
                 tr_ρ = trace(new_ρ)
-                #@info "tr_rho" tr_ρ
+
                 # Evolve the unnormalized derivative wrt ω
-                τ = (Mpre * (Mpost * τ  +  dMpost * ρ) + dMpre * Mpost * ρ +
-                    tmp * τ )/ tr_ρ;
+
+                # Non-allocating code for
+                # τ = (Mpre * (Mpost * τ  +  dMpost * ρ) + dMpre * Mpost * ρ +
+                #      tmp * τ )/ tr_ρ;
+                mul!(tmp1, Mpost, τ)
+                mul!(tmp2, Mpre, tmp1)
+                mul!(tmp2, second_term, τ, 1., 1.)
+
+                mul!(tmp1, dMpost, ρ)
+                mul!(τ, Mpre, tmp1)
+                τ .+= tmp2
+
+                mul!(tmp1, Mpost, ρ)
+                mul!(tmp2, dMpre, tmp1)
+                τ .+= tmp2
+                τ ./= tr_ρ
 
                 zchop!(τ) # Round off elements smaller than 1e-14
 
                 tr_τ = trace(τ)
 
                 # Now we can renormalize ρ and its derivative wrt ω
-                ρ = new_ρ / tr_ρ
-                dρ = τ - tr_τ * ρ
+                ρ = new_ρ
+                ρ /= tr_ρ
+
+                dρ = τ
+                dρ -= tr_τ * ρ
+
             end
 
             if jt % outsteps == 0

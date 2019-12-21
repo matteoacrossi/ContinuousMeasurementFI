@@ -66,7 +66,7 @@ function trace(A::AbstractArray{T,1}) where T
 end
 
 function sup_pre_post(A, B)
-    return kron(transpose(B), A)
+    return kron(copy(transpose(B)), A)
 end
 
 function sup_pre_post(A)

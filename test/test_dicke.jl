@@ -6,7 +6,7 @@ using Random
 
 @testset "Dicke basis" begin
     @testset "ω = $ω" for ω in range(0,stop=1.,length=5)
-        @testset "Nj = $Nj" for Nj in 1:5
+        @testset "Nj = $Nj" for Nj in 1:2:5
             Ntraj = 1
             Tfinal = 1.0
             dt = 0.001
@@ -24,7 +24,7 @@ using Random
                 κ = κ_ind,
                 κcoll = κ_coll,
                 ω = ω,
-                η = η)     
+                η = η)
 
             Random.seed!(seed)
             @time res_sup = Eff_QFI_HD(Nj, Ntraj,# Number of trajectories
@@ -34,7 +34,7 @@ using Random
                             κcoll = κ_coll,
                             ω = ω,
                             η = η)      # Initial state
-                    
+
             er_FI = maximum(abs.(res_dicke.FI - res_sup.FI) ./ res_sup.FI)
 
             #println(er_FI)
