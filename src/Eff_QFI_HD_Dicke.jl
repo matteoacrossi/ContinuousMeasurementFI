@@ -129,8 +129,6 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
     # traj_count = 0
     # Run evolution for each trajectory, and build up the average
     # for FI and final strong measurement QFI
-
-
     @timeit_debug to "trajectories" begin
     result = @showprogress 1 "Computing..." @distributed (+) for ktraj = 1 : Ntraj
         ρ = ρ0 # Assign initial state to each trajectory
