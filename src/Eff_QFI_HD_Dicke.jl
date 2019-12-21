@@ -214,7 +214,7 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
 
                 # Now we can renormalize ρ and its derivative wrt ω
                 ρ = new_ρ
-                ρ ./= tr_ρ
+                ρ /= tr_ρ
 
                 dρ = τ
                 dρ -= tr_τ * ρ
