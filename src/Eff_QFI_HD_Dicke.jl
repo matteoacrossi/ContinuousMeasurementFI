@@ -77,6 +77,9 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
             liouvillian = tosparse(sys.liouvillian())
             indprepost = liouvillian + Nj*I
 
+
+            # Initial state of the system
+            # is a spin coherent state |++...++>
             ρ0 = Matrix(tosparse(piqs.css(Nj)))[:]
         end
 
@@ -98,7 +101,6 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
             Jy2pre = sup_pre(Jy2)
             Jz2pre = sup_pre(Jz2)
 
-
             H = ω * Jz
             dH = Jz
 
@@ -115,11 +117,9 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
             dMpre = sup_pre(dM)
             dMpost = sup_post(dM')
 
+            # TODO: Find better name
             second_term = ((1 - η) * dt * κcoll * Jyprepost +
                   dt * (κ/2) * indprepost)
-
-            # Initial state of the system
-            # is a spin coherent state |++...++>
 
             t = (1 : Ntime) * dt
             t = t[outsteps:outsteps:end]
