@@ -2,6 +2,7 @@ using ZChop # For chopping small imaginary parts in ρ
 using Distributed
 using TimerOutputs
 using ProgressMeter
+using LinearMaps
 
 function squeezing_param(N, ΔJ1, J2m, J3m)
     """
@@ -94,12 +95,15 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
             Jyprepost = sup_pre_post(Jy)
 
             Jxpre = sup_pre(Jx)
-            Jypre = sup_pre(Jy)
+            Jypre = LinearMap(sup_pre(Jy))
             Jzpre = sup_pre(Jz)
 
             Jx2pre = sup_pre(Jx2)
-            Jy2pre = sup_pre(Jy2)
+            Jy2pre = LinearMap(sup_pre(Jy2))
             Jz2pre = sup_pre(Jz2)
+
+            Jypost = LinearMap(sup_post(Jy'))
+            Jy2post = LinearMap(sup_post(Jy2'))
 
             H = ω * Jz
             dH = Jz
@@ -108,6 +112,9 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
             M0 = sparse(I - 1im * H * dt -
                         0.25 * dt * κ * Nj * I - # The Id comes from the squares of sigmaz_j
                         (κcoll/2) * Jy2 * dt)
+
+            M0pre = LinearMap(sup_pre(M0))
+            M0post = LinearMap(sup_post(M0'))
 
             @info "Density of M0: $(density(M0))"
 
@@ -166,14 +173,11 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
             dy = 2 * sqrt(κcoll * η) * trace(tmp1) * dt + dW()
             end
             # Kraus operator Eq. (36)
-            @timeit_debug to "op creation" begin
-                M = (M0 + sqrt(η * κcoll) * Jy * dy +
-                    η * (κcoll/2) * Jy2 * (dy^2 - dt))
-            end
-
             @timeit_debug to "sup creation" begin
-                Mpre = sup_pre(M)
-                Mpost = sup_post(M')
+                Mpre = (M0pre + (sqrt(η * κcoll) * dy) * Jypre +
+                        (η * (κcoll/2) * (dy^2 - dt)) * Jy2pre)
+                Mpost = (M0post + (sqrt(η * κcoll) * dy) * Jypost +
+                        (η * (κcoll/2) * (dy^2 - dt)) * Jy2post)
             end
 
             #@info "Eigvals" eigvals(Hermitian(Matrix(reshape(ρ, size(Jx)))))[1]
