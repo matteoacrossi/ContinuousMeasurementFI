@@ -52,23 +52,57 @@ function σ(direction::Symbol, n::Int)
     return σ
 end
 
-function sup_pre(A)
-    return kron(I + zero(A), A)
-end
+"""
+    trace(A)
 
-function sup_post(A)
-    return kron(copy(transpose(A)), I + zero(A))
-end
-
+Return the trace of a vectorized operator A
+"""
 function trace(A::AbstractArray{T,1}) where T
+
     N = Int(sqrt(length(A)))
     return tr(reshape(A, (N,N)))
 end
 
+"""
+    sup_pre(A)
+
+    Superoperator formed from pre-multiplication by operator A.
+
+    Effectively evaluate the Kronecker product I ⊗ A
+"""
+function sup_pre(A)
+    return kron(I + zero(A), A)
+end
+
+"""
+    sup_post(A)
+
+    Superoperator formed from post-multiplication by operator A.
+
+    Effectively evaluate the Kronecker product A.T ⊗ I
+"""
+function sup_post(A)
+    return kron(copy(transpose(A)), I + zero(A))
+end
+
+"""
+    sup_pre_post(A, B)
+
+    Superoperator formed from A * . * B†
+
+    Effectively evaluate the Kronecker product B* ⊗ A
+"""
 function sup_pre_post(A, B)
     return kron(copy(transpose(B)), A)
 end
 
+"""
+    sup_pre_post(A)
+
+    Superoperator formed from A * . * A†
+
+    Effectively evaluate the Kronecker product A* ⊗ A
+"""
 function sup_pre_post(A)
     return kron(conj(A), A)
 end
