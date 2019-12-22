@@ -77,12 +77,12 @@ end
 """
     sup_post(A)
 
-    Superoperator formed from post-multiplication by operator A.
+    Superoperator formed from post-multiplication by operator A†.
 
-    Effectively evaluate the Kronecker product A.T ⊗ I
+    Effectively evaluate the Kronecker product A* ⊗ I
 """
 function sup_post(A)
-    return kron(copy(transpose(A)), I + zero(A))
+    return kron(conj(A), I + zero(A))
 end
 
 """
@@ -93,7 +93,7 @@ end
     Effectively evaluate the Kronecker product B* ⊗ A
 """
 function sup_pre_post(A, B)
-    return kron(copy(transpose(B)), A)
+    return kron(conj(B), A)
 end
 
 """

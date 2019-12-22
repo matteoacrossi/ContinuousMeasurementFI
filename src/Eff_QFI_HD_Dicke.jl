@@ -115,7 +115,7 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
             dM = -1im * dH * dt
 
             dMpre = sup_pre(dM)
-            dMpost = sup_post(dM')
+            dMpost = sup_post(dM)
 
             # TODO: Find better name
             second_term = ((1 - η) * dt * κcoll * Jyprepost +
@@ -173,7 +173,7 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
 
             @timeit_debug to "sup creation" begin
                 Mpre = sup_pre(M)
-                Mpost = sup_post(M')
+                Mpost = sup_post(M)
             end
 
             #@info "Eigvals" eigvals(Hermitian(Matrix(reshape(ρ, size(Jx)))))[1]
