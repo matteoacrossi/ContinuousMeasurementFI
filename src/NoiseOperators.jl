@@ -3,6 +3,7 @@ Functions for constructing noise operators
 =#
 using SparseArrays
 using LinearAlgebra
+using LinearMaps
 """
     σ_j(j, n, direction)
 
@@ -70,8 +71,9 @@ end
 
     Effectively evaluate the Kronecker product I ⊗ A
 """
-function sup_pre(A)
-    return kron(I + zero(A), A)
+function sup_pre(A::LinearMap)
+    unit = one(eltype(A))
+    return kron(LinearMaps.UniformScalingMap(unit, size(A)), A)
 end
 
 """
@@ -81,19 +83,20 @@ end
 
     Effectively evaluate the Kronecker product A.T ⊗ I
 """
-function sup_post(A)
-    return kron(copy(transpose(A)), I + zero(A))
+function sup_post(A::LinearMap)
+    unit = one(eltype(A))
+    return kron(transpose(A), LinearMaps.UniformScalingMap(unit, size(A)))
 end
 
 """
     sup_pre_post(A, B)
 
-    Superoperator formed from A * . * B†
+    Superoperator formed from A * . * B
 
     Effectively evaluate the Kronecker product B* ⊗ A
 """
-function sup_pre_post(A, B)
-    return kron(copy(transpose(B)), A)
+function sup_pre_post(A::LinearMap, B::LinearMap)
+    return kron(transpose(B), A)
 end
 
 """
@@ -103,6 +106,6 @@ end
 
     Effectively evaluate the Kronecker product A* ⊗ A
 """
-function sup_pre_post(A)
-    return kron(conj(A), A)
+function sup_pre_post(A::LinearMap)
+    return kron(transpose(adjoint(A)), A)
 end

@@ -11,6 +11,7 @@ SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 TimerOutputs = "a759f4b9-e2f1-59dc-863e-4aeb61b1ea8f"
 ZChop = "8603256b-76ad-53fe-b511-38a38e6437cd"
 ProgressMeter = "92933f4c-e287-5a05-a399-4b506db050ca"
+LinearMaps = "7a12625a-238d-50fd-b39a-03d52299707e"
 
 [extras]
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"

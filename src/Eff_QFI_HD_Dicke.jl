@@ -76,7 +76,7 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
             sys.dephasing = 4.
 
             liouvillian = tosparse(sys.liouvillian())
-            indprepost = liouvillian + Nj*I
+            indprepost = LinearMap(liouvillian + Nj*I)
 
 
             # Initial state of the system
@@ -84,18 +84,20 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
             ρ0 = Matrix(tosparse(piqs.css(Nj)))[:]
         end
 
-        Jx2 = Jx^2
-        Jy2 = Jy^2
-        Jz2 = Jz^2
+        Jx2 = LinearMap(Jx^2)
+        Jy2 = LinearMap(Jy^2)
+        Jz2 = LinearMap(Jz^2)
+
+        (Jx, Jy, Jz) = LinearMap.((Jx, Jy, Jz))
 
         @info "Size of ρ: $(length(ρ0))"
-        @info "Density of noise superoperator: $(density(indprepost))"
+        #@info "Density of noise superoperator: $(density(indprepost))"
 
         @timeit_debug to "op creation" begin
             Jyprepost = sup_pre_post(Jy)
 
             Jxpre = sup_pre(Jx)
-            Jypre = LinearMap(sup_pre(Jy))
+            Jypre = sup_pre(Jy)
             Jzpre = sup_pre(Jz)
 
             Jx2pre = sup_pre(Jx2)
@@ -109,14 +111,14 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
             dH = Jz
 
             # Kraus-like operator, trajectory-independent part
-            M0 = sparse(I - 1im * H * dt -
+            M0 = LinearMap(sparse(I - 1im * H * dt -
                         0.25 * dt * κ * Nj * I - # The Id comes from the squares of sigmaz_j
-                        (κcoll/2) * Jy2 * dt)
+                        (κcoll/2) * Jy2 * dt))
 
-            M0pre = LinearMap(sup_pre(M0))
-            M0post = LinearMap(sup_post(M0'))
+            M0pre = sup_pre(M0)
+            M0post = sup_post(M0')
 
-            @info "Density of M0: $(density(M0))"
+            #@info "Density of M0: $(density(M0))"
 
             # Derivative of the Kraus-like operator wrt to ω
             dM = -1im * dH * dt
@@ -125,8 +127,8 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
             dMpost = sup_post(dM')
 
             # TODO: Find better name
-            second_term = ((1 - η) * dt * κcoll * Jyprepost +
-                  dt * (κ/2) * indprepost)
+            second_term = (1 - η) * dt * κcoll * Jyprepost +
+                  dt * (κ/2) * indprepost
 
             t = (1 : Ntime) * dt
             t = t[outsteps:outsteps:end]
@@ -173,20 +175,23 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
             dy = 2 * sqrt(κcoll * η) * trace(tmp1) * dt + dW()
             end
             # Kraus operator Eq. (36)
+            @timeit_debug to "op creation" begin
+                M = (M0 + sqrt(η * κcoll) * Jy * dy +
+                    η * (κcoll/2) * Jy2 * (dy^2 - dt))
+            end
+
             @timeit_debug to "sup creation" begin
-                Mpre = (M0pre + (sqrt(η * κcoll) * dy) * Jypre +
-                        (η * (κcoll/2) * (dy^2 - dt)) * Jy2pre)
-                Mpost = (M0post + (sqrt(η * κcoll) * dy) * Jypost +
-                        (η * (κcoll/2) * (dy^2 - dt)) * Jy2post)
+                Mpre = sup_pre(M)
+                Mpost = sup_post(M')
             end
 
             #@info "Eigvals" eigvals(Hermitian(Matrix(reshape(ρ, size(Jx)))))[1]
             @timeit_debug to "dynamics" begin
                 # Evolve the density operator
                 # Non-allocating code for
-                # new_ρ = Mpre * Mpost * ρ + second_term * ρ
-                mul!(tmp1, Mpost, ρ)
-                mul!(new_ρ, Mpre, tmp1)
+                #new_ρ = Mpre * Mpost * ρ + second_term * ρ
+                # mul!(tmp1, Mpost, ρ)
+                mul!(new_ρ, Mpre * Mpost, ρ)
                 mul!(new_ρ, second_term, ρ, 1., 1.)
 
                 zchop!(new_ρ) # Round off elements smaller than 1e-14
@@ -197,7 +202,7 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
 
                 # Non-allocating code for
                 # τ = (Mpre * (Mpost * τ  +  dMpost * ρ) + dMpre * Mpost * ρ +
-                #      tmp * τ )/ tr_ρ;
+                #      second_term * τ )/ tr_ρ;
                 mul!(tmp1, Mpost, τ)
                 mul!(tmp2, Mpre, tmp1)
                 mul!(tmp2, second_term, τ, 1., 1.)
