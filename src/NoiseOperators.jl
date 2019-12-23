@@ -71,7 +71,7 @@ end
     Effectively evaluate the Kronecker product I ⊗ A
 """
 function sup_pre(A)
-    return kron(I + zero(A), A)
+    return blkdiag(A, size(A, 1))
 end
 
 """
@@ -105,4 +105,28 @@ end
 """
 function sup_pre_post(A)
     return kron(conj(A), A)
+end
+
+function blkdiag(X::SparseMatrixCSC{Tv, Ti}, num) where {Tv, Ti<:Integer}
+    mX = size(X, 1)
+    nX = size(X, 2)
+    m = num * size(X, 1)
+    n = num * size(X, 2)
+
+    nnzX = nnz(X)
+    nnz_res = nnzX * num
+    colptr = Vector{Ti}(undef, n+1)
+    rowval = Vector{Ti}(undef, nnz_res)
+    nzval = repeat(X.nzval, num)
+
+    @inbounds @simd for i = 1 : num
+         @simd for j = 1 : nX + 1
+            colptr[(i - 1) * nX + j] = X.colptr[j] + (i-1) * nnzX
+        end
+         @simd for j = 1 : nnzX
+            rowval[(i - 1) * nnzX + j] = X.rowval[j] + (i - 1) * (mX)
+        end
+    end
+    colptr[n+1] = num * nnzX + 1
+    SparseMatrixCSC(m, n, colptr, rowval, nzval)
 end

@@ -9,12 +9,12 @@ include("../src/NoiseOperators.jl")
 end
 
 @testset "Spre, spost" begin
-N = 4
-ρ = rand(N, N) + 1im * rand(N,N)
-A = rand(N, N) + 1im * rand(N,N)
+N = 10
+# ρ = rand(N, N) + 1im * rand(N,N)
+# A = rand(N, N) + 1im * rand(N,N)
 
-@test ρ * A' ≈ reshape(sup_post(A) * ρ[:], (N,N))
-@test A * ρ ≈ reshape(sup_pre(A) * ρ[:], (N,N))
+# @test ρ * A' ≈ reshape(sup_post(A) * ρ[:], (N,N))
+# @test A * ρ ≈ reshape(sup_pre(A) * ρ[:], (N,N))
 
 ρ = sprand(N, N, .1) + 1im *  sprand(N, N, .1)
 A = sprand(N, N, .1) + 1im * sprand(N, N, .1)
@@ -26,8 +26,8 @@ A = sprand(N, N, .1) + 1im * sprand(N, N, .1)
 @test typeof(sup_pre(A)) <: typeof(A)
 
 ρ = rand(N, N) + 1im * rand(N,N)
-A = rand(N, N) + 1im * rand(N,N)
-B = rand(N, N) + 1im * rand(N,N)
+A = sprand(N, N, .3) + 1im * sprand(N,N, .3)
+B = sprand(N, N, .3) + 1im * sprand(N,N, .3)
 
 @test A * ρ * B' ≈ reshape(sup_pre(A) * sup_post(B) * ρ[:], (N,N))
 @test A * ρ * B' ≈ reshape(sup_post(B) * sup_pre(A) * ρ[:], (N,N))
