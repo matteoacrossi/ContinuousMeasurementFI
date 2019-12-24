@@ -5,9 +5,9 @@ using Test
 using Random
 
 @testset "Dicke basis" begin
-    @testset "ω = $ω" for ω in range(0,stop=1.,length=5)
+    @testset "ω = $ω" for ω in range(0,stop=1.,length=3)
         @testset "Nj = $Nj" for Nj in 1:2:5
-            Ntraj = 1
+            Ntraj = 2
             Tfinal = 1.0
             dt = 0.001
             κ_ind = 1.
