@@ -136,7 +136,7 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
         # Derivative of ρ wrt the parameter
         # Initial state does not depend on the paramter
         dρ = zero(ρ)
-        τ = zero(ρ)
+        τ = dρ
 
         # Temporarily store the new density operator
         new_ρ = similar(ρ0)
@@ -212,8 +212,12 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
                 tr_τ = trace(τ)
 
                 # Now we can renormalize ρ and its derivative wrt ω
-                ρ .= new_ρ ./ tr_ρ
-                dρ .= τ .- tr_τ .* ρ
+                ρ = new_ρ
+                ρ /= tr_ρ
+
+                dρ = τ
+                dρ -= tr_τ * ρ
+
             end
 
             if jt % outsteps == 0
