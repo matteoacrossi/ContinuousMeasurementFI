@@ -136,7 +136,7 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
         # Derivative of ρ wrt the parameter
         # Initial state does not depend on the paramter
         dρ = zero(ρ)
-        τ = dρ
+        τ = zero(ρ)
 
         # Temporarily store the new density operator
         new_ρ = similar(ρ0)
