@@ -90,7 +90,7 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
         @info "Size of ρ: $(length(ρ0))"
         @info "Density of noise superoperator: $(density(indprepost))"
 
-        @timeit_debug to "op creation" begin
+        @timeit_debug to "op_creation" begin
             Jyprepost = sup_pre_post(Jy)
 
             Jxpre = sup_pre(Jx)
@@ -136,7 +136,7 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
         # Derivative of ρ wrt the parameter
         # Initial state does not depend on the paramter
         dρ = zero(ρ)
-        τ = dρ
+        τ = zero(ρ)
 
         # Temporarily store the new density operator
         new_ρ = similar(ρ0)
@@ -166,12 +166,12 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
             dy = 2 * sqrt(κcoll * η) * trace(tmp1) * dt + dW()
             end
             # Kraus operator Eq. (36)
-            @timeit_debug to "op creation" begin
+            @timeit_debug to "op_creation" begin
                 M = (M0 + sqrt(η * κcoll) * Jy * dy +
                     η * (κcoll/2) * Jy2 * (dy^2 - dt))
             end
 
-            @timeit_debug to "sup creation" begin
+            @timeit_debug to "sup_creation" begin
                 Mpre = sup_pre(M)
                 Mpost = sup_post(M)
             end
