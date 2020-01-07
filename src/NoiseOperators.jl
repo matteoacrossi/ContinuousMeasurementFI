@@ -3,6 +3,8 @@ Functions for constructing noise operators
 =#
 using SparseArrays
 using LinearAlgebra
+import SparseArrays.getcolptr
+
 """
     σ_j(j, n, direction)
 
@@ -71,8 +73,9 @@ end
     Effectively evaluate the Kronecker product I ⊗ A
 """
 function sup_pre(A)
-    return kron(I + zero(A), A)
+    return blkdiag(A, size(A, 1))
 end
+
 
 """
     sup_post(A)
@@ -105,4 +108,77 @@ end
 """
 function sup_pre_post(A)
     return kron(conj(A), A)
+end
+
+function blkdiag(X::SparseMatrixCSC{Tv, Ti}, num) where {Tv, Ti<:Integer}
+    mX = size(X, 1)
+    nX = size(X, 2)
+    m = num * size(X, 1)
+    n = num * size(X, 2)
+
+    nnzX = nnz(X)
+    nnz_res = nnzX * num
+    colptr = Vector{Ti}(undef, n+1)
+    rowval = Vector{Ti}(undef, nnz_res)
+    nzval = repeat(X.nzval, num)
+
+    @inbounds @simd for i = 1 : num
+         @simd for j = 1 : nX + 1
+            colptr[(i - 1) * nX + j] = X.colptr[j] + (i-1) * nnzX
+        end
+         @simd for j = 1 : nnzX
+            rowval[(i - 1) * nnzX + j] = X.rowval[j] + (i - 1) * (mX)
+        end
+    end
+    colptr[n+1] = num * nnzX + 1
+    SparseMatrixCSC(m, n, colptr, rowval, nzval)
+end
+
+# function blkdiag!(Sup::SparseMatrixCSC{Tv, Ti}, X::SparseMatrixCSC{Tv, Ti}, num) where {Tv, Ti<:Integer}
+#     copy!(Sup.nzval, repeat(X.nzval, num))
+#     return Sup
+# end
+
+"""
+Non-allocating update of the matrix Sup = I ⊗ A.
+
+ATTENTION!!! It assumes the position of the non-zero elements
+does not change!
+USE WITH CARE!!!!!
+"""
+function fast_sup_pre!(Sup::SparseMatrixCSC{Tv, Ti}, A::SparseMatrixCSC{Tv, Ti}) where {Tv, Ti<:Integer}
+    num = size(A, 1)
+    nnzX = nnz(A)
+    @inbounds @simd for i = 1 : num
+         @simd for j = 1 : nnzX
+            Sup.nzval[(i - 1) * nnzX + j] = A.nzval[j]
+        end
+    end
+end
+
+"""
+Non-allocating update of the matrix Sup = A' ⊗ I.
+
+ATTENTION!!! It assumes the position of the non-zero elements
+does not change!
+USE WITH CARE!!!!!
+"""
+function fast_sup_post!(Sup::SparseMatrixCSC{T1, S1}, A::SparseMatrixCSC{T1,S1}) where {T1, S1}
+    n = size(A, 1)
+    col = 1
+
+    @inbounds for j = 1 : n
+        startA = getcolptr(A)[j]
+        stopA = getcolptr(A)[j+1] - 1
+        lA = stopA - startA + 1
+        for i = 1:n
+            ptr_range = Sup.colptr[col]
+            col += 1
+            for ptrA = startA : stopA
+                Sup.nzval[ptr_range] = nonzeros(A)[ptrA]'
+                ptr_range += 1
+            end
+        end
+    end
+    return Sup
 end
