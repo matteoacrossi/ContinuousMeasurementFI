@@ -145,6 +145,14 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
         tmp1 = similar(ρ0)
         tmp2 = similar(ρ0)
 
+        # Temporary operator in order to allocate Mpre
+        # and Mpost
+        Mtmp = (M0 + sqrt(η * κcoll) * Jy * 1. +
+                    η * (κcoll/2) * Jy2 * (1. ^2 - dt))
+
+        Mpre = sup_pre(Mtmp)
+        Mpost = sup_post(Mtmp)
+
         # Output variables
         jx = similar(t)
         jy = similar(t)
@@ -172,8 +180,8 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
             end
 
             @timeit_debug to "sup_creation" begin
-                Mpre = sup_pre(M)
-                Mpost = sup_post(M)
+                @timeit_debug to "pre" fast_sup_pre!(Mpre, M)
+                @timeit_debug to "post" fast_sup_post!(Mpost, M)
             end
 
             #@info "Eigvals" eigvals(Hermitian(Matrix(reshape(ρ, size(Jx)))))[1]
@@ -252,7 +260,6 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
         # if traj_count % 10 == 0
         #     @info "$(traj_count) trajectories done"
         # end
-
         # Use the reduction feature of @distributed for
         # (at the end of each cicle, sum the result to result)
         hcat(FisherT, QFisherT, jx, jy, jz, Δjx2, Δjy2, Δjz2, xi2x, xi2y, xi2z)
