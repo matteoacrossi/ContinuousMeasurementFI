@@ -131,7 +131,7 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
     # for FI and final strong measurement QFI
     @timeit_debug to "trajectories" begin
     result = @showprogress 1 "Computing..." @distributed (+) for ktraj = 1 : Ntraj
-        ρ = ρ0 # Assign initial state to each trajectory
+        ρ = copy(ρ0) # Assign initial state to each trajectory
 
         # Derivative of ρ wrt the parameter
         # Initial state does not depend on the paramter
@@ -168,11 +168,11 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
         jto = 1 # Counter for the output
         for jt = 1 : Ntime
             @timeit_debug to "current" begin
-
-            # Homodyne current (Eq. 35)
-            mul!(tmp1, Jypre, ρ)
-            dy = 2 * sqrt(κcoll * η) * trace(tmp1) * dt + dW()
+                # Homodyne current (Eq. 35)
+                mul!(tmp1, Jypre, ρ)
+                dy = 2 * sqrt(κcoll * η) * trace(tmp1) * dt + dW()
             end
+
             # Kraus operator Eq. (36)
             @timeit_debug to "op_creation" begin
                 M = (M0 + sqrt(η * κcoll) * Jy * dy +
@@ -220,12 +220,8 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
                 tr_τ = trace(τ)
 
                 # Now we can renormalize ρ and its derivative wrt ω
-                ρ = new_ρ
-                ρ /= tr_ρ
-
-                dρ = τ
-                dρ -= tr_τ * ρ
-
+                ρ .= new_ρ ./ tr_ρ
+                dρ .= τ .- tr_τ .* ρ
             end
 
             if jt % outsteps == 0
