@@ -226,16 +226,17 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
 
             if jt % outsteps == 0
                 @timeit_debug to "Output" begin
-                    jx[jto] = real(trace(Jxpre * ρ))
-                    jy[jto] = real(trace(Jypre * ρ))
-                    jz[jto] = real(trace(Jzpre * ρ))
+                    jx[jto] = real(trace(mul!(tmp1, Jxpre, ρ)))
+                    jy[jto] = real(trace(mul!(tmp1, Jypre, ρ)))
+                    jz[jto] = real(trace(mul!(tmp1, Jzpre, ρ)))
 
-                    jx2[jto] = real(trace(Jx2pre * ρ))
-                    jy2[jto] = real(trace(Jy2pre * ρ))
-                    jz2[jto] = real(trace(Jz2pre * ρ))
+                    jx2[jto] = real(trace(mul!(tmp1, Jx2pre, ρ)))
+                    jy2[jto] = real(trace(mul!(tmp1, Jy2pre, ρ)))
+                    jz2[jto] = real(trace(mul!(tmp1, Jz2pre, ρ)))
 
                     # We evaluate the classical FI for the continuous measurement
                     FisherT[jto] = real(tr_τ^2)
+
                     # We evaluate the QFI for a final strong measurement done at time t
                     @timeit_debug to "QFI" QFisherT[jto] = QFI(reshape(ρ, size(Jy)), reshape(dρ, size(Jy)))
 
