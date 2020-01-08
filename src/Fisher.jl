@@ -1,4 +1,5 @@
 using ZChop
+
 """
     QFI(ρ, dρ [, abstol])
 
@@ -32,4 +33,30 @@ function QFI(ρ, dρ; abstol = 1e-5)
         end
     end
     return res
+end
+
+"""
+    QFI_block(ρ, dρ, N [, abstol])
+
+Numerically evaluate the quantum Fisher information for the matrix ρ given its derivative dρ wrt the parameter,
+for the special case of a block-diagonal matrix in the Dicke basis.
+
+This function is the implementation of Eq. (13) in Paris, Int. J. Quantum Inform. 7, 125 (2009).
+
+# Arguments
+    * `ρ`:  Density matrix
+    * `dhro`: Derivative wrt the parameter to be estimated
+    * `N`: number of spins
+    * `abstol = 1e-5`: tolerance in the denominator of the formula
+"""
+function QFI_block(ρ, dρ, N; abstol = 1e-5)
+    blockidx = cumsum(block_sizes(N))
+    qfi = 0.
+    lastidx = 1
+    for i = 1:length(blockidx)
+        idx_range = lastidx:blockidx[i]
+        qfi += QFI(view(ρ, idx_range, idx_range), view(dρ, idx_range, idx_range))
+        lastidx = blockidx[i] + 1
+    end
+    return qfi
 end

@@ -222,6 +222,7 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
                 # Now we can renormalize ρ and its derivative wrt ω
                 ρ .= new_ρ ./ tr_ρ
                 dρ .= τ .- tr_τ .* ρ
+
             end
 
             if jt % outsteps == 0
@@ -238,11 +239,12 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
                     FisherT[jto] = real(tr_τ^2)
 
                     # We evaluate the QFI for a final strong measurement done at time t
-                    @timeit_debug to "QFI" QFisherT[jto] = QFI(reshape(ρ, size(Jy)), reshape(dρ, size(Jy)))
+                    @timeit_debug to "QFI" QFisherT[jto] = QFI_block(reshape(ρ, size(Jy)), reshape(dρ, size(Jy)), Nj)
 
                     jto += 1
                 end
             end
+
         end
 
         Δjx2 = jx2 - jx.^2
