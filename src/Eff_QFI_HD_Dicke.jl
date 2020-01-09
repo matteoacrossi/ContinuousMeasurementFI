@@ -200,18 +200,14 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
 
                 # Non-allocating code for
                 # τ = (Mpre * (Mpost * τ  +  dMpost * ρ) + dMpre * Mpost * ρ +
-                #      tmp * τ )/ tr_ρ;
-                mul!(tmp1, Mpost, τ)
-                mul!(tmp2, Mpre, tmp1)
-                mul!(tmp2, second_term, τ, 1., 1.)
-
+                #      second_term * τ )/ tr_ρ;
                 mul!(tmp1, dMpost, ρ)
-                mul!(τ, Mpre, tmp1)
-                τ .+= tmp2
-
+                mul!(tmp1, Mpost, τ, 1., 1.)
+                mul!(tmp2, second_term, τ)
+                mul!(tmp2, Mpre, tmp1, 1., 1.)
                 mul!(tmp1, Mpost, ρ)
-                mul!(tmp2, dMpre, tmp1)
-                τ .+= tmp2
+                mul!(tmp2, dMpre, tmp1, 1., 1.)
+                τ .= tmp2
                 τ ./= tr_ρ
 
                 zchop!(τ) # Round off elements smaller than 1e-14
