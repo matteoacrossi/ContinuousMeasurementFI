@@ -77,7 +77,6 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
             liouvillian = tosparse(sys.liouvillian())
             indprepost = liouvillian + Nj*I
 
-
             # Initial state of the system
             # is a spin coherent state |++...++>
             ρ0 = Matrix(tosparse(piqs.css(Nj)))[:]
@@ -147,11 +146,11 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
 
         # Temporary operator in order to allocate Mpre
         # and Mpost
-        Mtmp = (M0 + sqrt(η * κcoll) * Jy * 1. +
+        M = (M0 + sqrt(η * κcoll) * Jy * 1. +
                     η * (κcoll/2) * Jy2 * (1. ^2 - dt))
 
-        Mpre = sup_pre(Mtmp)
-        Mpost = sup_post(Mtmp)
+        Mpre = sup_pre(M)
+        Mpost = sup_post(M)
 
         # Output variables
         jx = similar(t)
@@ -222,7 +221,6 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
                 # Now we can renormalize ρ and its derivative wrt ω
                 ρ .= new_ρ ./ tr_ρ
                 dρ .= τ .- tr_τ .* ρ
-
             end
 
             if jt % outsteps == 0
@@ -255,23 +253,20 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
         xi2y = squeezing_param(Nj, Δjy2, jx, jz)
         xi2z = squeezing_param(Nj, Δjz2, jx, jy)
 
-        # traj_count += 1
-        # if traj_count % 10 == 0
-        #     @info "$(traj_count) trajectories done"
-        # end
         # Use the reduction feature of @distributed for
         # (at the end of each cicle, sum the result to result)
         hcat(FisherT, QFisherT, jx, jy, jz, Δjx2, Δjy2, Δjz2, xi2x, xi2y, xi2z)
     end
     end
 
-    jx = result[:,3] / Ntraj
-    jy = result[:,4] / Ntraj
-    jz = result[:,5] / Ntraj
+    # Evaluate averages
+    jx = result[:, 3] / Ntraj
+    jy = result[:, 4] / Ntraj
+    jz = result[:, 5] / Ntraj
 
-    Δjx2 = result[:,6] / Ntraj
-    Δjy2 = result[:,7] / Ntraj
-    Δjz2 = result[:,8] / Ntraj
+    Δjx2 = result[:, 6] / Ntraj
+    Δjy2 = result[:, 7] / Ntraj
+    Δjz2 = result[:, 8] / Ntraj
 
     xi2x = result[:, 9] / Ntraj
     xi2y = result[:, 10] / Ntraj
