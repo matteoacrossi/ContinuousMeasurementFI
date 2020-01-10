@@ -31,6 +31,8 @@ module ContinuousMeasurementFI
     export Eff_QFI_HD
     export Eff_QFI_HD_Dicke
 
+    export liouvillian, jspin, css
+
     include("NoiseOperators.jl")
     include("States.jl")
     include("Fisher.jl")

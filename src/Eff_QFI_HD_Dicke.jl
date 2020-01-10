@@ -69,7 +69,7 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
 
         @timeit_debug to "PIQS" begin
             # Spin operators
-            (Jx, Jy, Jz) = tosparse.( piqs.jspin(Nj))
+            (Jx, Jy, Jz) = jspin(Nj)
 
             sys = piqs.Dicke(Nj)
             sys.dephasing = 4.
@@ -79,7 +79,7 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
 
             # Initial state of the system
             # is a spin coherent state |++...++>
-            ρ0 = Matrix(tosparse(piqs.css(Nj)))[:]
+            ρ0 = Matrix(css(Nj))[:]
         end
 
         Jx2 = Jx^2

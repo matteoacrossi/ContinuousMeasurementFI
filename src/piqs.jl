@@ -13,12 +13,34 @@ function tosparse(obj::PyObject)
 end
 
 """
+    liouvillian(N)
+
+Return a dephasing Liouvillian for N spins in the Dicke basis
+"""
+function liouvillian(N::T) where T<:Integer
+    sys = piqs.Dicke(N)
+    sys.dephasing = 4.
+
+    return tosparse(sys.liouvillian())
+end
+
+"""
     css(N)
 
 Return a coherent spin state in the Dicke basis for N spins
 """
 function css(N::T) where T<:Integer
     return tosparse(piqs.css(N))
+end
+
+"""
+    jspin(N)
+
+Return the tuple (Jx, Jy, Jz) of the spin operators in the
+Dicke basis. The returned operators are sparse arrays.
+"""
+function jspin(N::T) where T<:Integer
+    return tosparse.(piqs.jspin(N))
 end
 
 """
