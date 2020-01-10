@@ -6,6 +6,7 @@ module ContinuousMeasurementFI
     const qutip = PyNULL()
     const piqs = PyNULL()
     const sp = PyNULL()
+    const pystuff = PyNULL()
 
     function __init__()
         # The commands below import the modules, and make sure that they Arguments
@@ -15,31 +16,9 @@ module ContinuousMeasurementFI
         copy!(piqs, pyimport_conda("qutip.piqs", "qutip", "conda-forge"))
         copy!(sp, pyimport_conda("scipy.sparse", "scipy"))
 
-        # This is the function to get data from the python sparse matrix
-        py"""
-        import scipy.sparse as sp
-        import numpy as np
-        import qutip
+        pushfirst!(PyVector(pyimport("sys")."path"), @__DIR__)
 
-        def sparse_to_ijv(sparsematrix):
-            # If a Qobj, get the sparse representation
-            if isinstance(sparsematrix, qutip.Qobj):
-                sparsematrix = sparsematrix.data
-
-            # Get the shape of the sparse matrix
-            (m, n) = sparsematrix.shape
-
-            # Get the row and column incides of the nonzero elements
-            I, J = sparsematrix.nonzero()
-
-            # Get the vector of values
-            V = np.array([sparsematrix[i,j] for (i,j) in zip(I,J)])
-
-            # Convert to 1-based indexing
-            I += 1
-            J += 1
-            return (I, J, V, m, n)
-        """
+        copy!(pystuff, pyimport("pystuff"))
     end
 
     include("piqs.jl")
