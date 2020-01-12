@@ -1,7 +1,7 @@
 using SparseArrays
 
 """
-    tosparse(obj)
+    tosparse(obj) -> SparseMatrixCSC
 
 Returns the sparse matrix corresponding to the PyObject obj.
 obj can be a scipy.sparse matrix or a qutip Qobj
@@ -13,7 +13,7 @@ function tosparse(obj::PyObject)
 end
 
 """
-    liouvillian(N)
+    liouvillian(N) -> SparseMatrixCSC
 
 Return a dephasing Liouvillian for N spins in the Dicke basis
 """
@@ -25,7 +25,7 @@ function liouvillian(N::T) where T<:Integer
 end
 
 """
-    css(N)
+    css(N) -> SparseMatrixCSC
 
 Return a coherent spin state in the Dicke basis for N spins
 """
@@ -34,7 +34,7 @@ function css(N::T) where T<:Integer
 end
 
 """
-    jspin(N)
+    jspin(N) -> Tuple{SparseMatrixCSC}
 
 Return the tuple (Jx, Jy, Jz) of the spin operators in the
 Dicke basis. The returned operators are sparse arrays.
