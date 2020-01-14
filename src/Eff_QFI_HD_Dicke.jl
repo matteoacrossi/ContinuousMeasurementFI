@@ -87,7 +87,7 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
         Jz2 = Jz^2
 
         @info "Type of ρ: $(typeof(ρ0))"
-        @info "Size of ρ: $(length(ρ0))"
+        @info "Size of ρ: $(length(ρ0)), $(length(ρ0.nzval)) non-zero elements"
         @info "Density of noise superoperator: $(density(indprepost))"
 
         @timeit_debug to "op_creation" begin
