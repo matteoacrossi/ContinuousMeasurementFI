@@ -67,7 +67,7 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
 
     if outpoints > 0
         try
-            outsteps = Int(Tfinal / dt / outpoints)
+            outsteps = Int(round(Tfinal / dt / outpoints, digits=3))
         catch InexactError
             @warn "The requested $outpoints output points does not divide
             the total time steps. Using the full time output."
