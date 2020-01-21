@@ -3,6 +3,7 @@ using Distributed
 using TimerOutputs
 using ProgressMeter
 
+
 function squeezing_param(N, ΔJ1, J2m, J3m)
     """
         ξ2 = squeezing_param(N, ΔJ1, J2m, J3m)
