@@ -24,8 +24,7 @@ using Random
                 κ = κ_ind,
                 κcoll = κ_coll,
                 ω = ω,
-                η = η,
-                outpoints = Int(Tfinal / dt))
+                η = η)
 
             Random.seed!(seed)
             @time res_sup = Eff_QFI_HD(Nj, Ntraj,# Number of trajectories

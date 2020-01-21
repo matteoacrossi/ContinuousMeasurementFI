@@ -57,18 +57,21 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
     κcoll::Real = 1.,                # Collective noise strength
     ω::Real = 0.0,                   # Frequency of the Hamiltonian
     η::Real = 1.,                    # Measurement efficiency
-    outpoints = 200,                 # Number of output points
+    outpoints = nothing,                 # Number of output points
     to = TimerOutput())
 
     @info "Eff_QFI_HD_Dicke starting"
     @info "Parameters" Nj Ntraj Tfinal dt κ κcoll ω η outpoints
 
     outsteps = 1
-    try
-        outsteps = Int(Tfinal / dt / outpoints)
-    catch InexactError
-        @warn "The requested $outpoints output points does not divide
-        the total time steps. Using the full time output."
+
+    if !isnothing(outpoints)
+        try
+            outsteps = Int(Tfinal / dt / outpoints)
+        catch InexactError
+            @warn "The requested $outpoints output points does not divide
+            the total time steps. Using the full time output."
+        end
     end
 
     @info "Output every $outsteps steps"
