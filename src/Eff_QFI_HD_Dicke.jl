@@ -57,7 +57,7 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
     κcoll::Real = 1.,                # Collective noise strength
     ω::Real = 0.0,                   # Frequency of the Hamiltonian
     η::Real = 1.,                    # Measurement efficiency
-    outpoints = nothing,                 # Number of output points
+    outpoints = 0,                 # Number of output points
     to = TimerOutput())
 
     @info "Eff_QFI_HD_Dicke starting"
@@ -65,7 +65,7 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
 
     outsteps = 1
 
-    if !isnothing(outpoints)
+    if outpoints > 0
         try
             outsteps = Int(Tfinal / dt / outpoints)
         catch InexactError
