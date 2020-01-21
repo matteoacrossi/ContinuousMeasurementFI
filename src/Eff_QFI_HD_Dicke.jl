@@ -47,7 +47,7 @@ The function returns a tuple `(t, FI, QFI)` containing the time vector and the v
 * `κcoll = 1`: the collective noise coupling
 * `ω = 0`: local value of the frequency
 * `η = 1`: measurement efficiency
-* `outsteps = 1`: save output every outsteps (QFI is expensive!)
+* `outpoints = 200`: save a total of outpoints timesteps
 """
 function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
     Ntraj::Int64,                    # Number of trajectories
