@@ -83,7 +83,7 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
 
         @timeit_debug to "PIQS" begin
             # Spin operators
-            (Jx, Jy, Jz) = jspin(Nj)
+            (Jx, Jy, Jz) = map(blockdiagonal, jspin(Nj))
 
             sys = piqs.Dicke(Nj)
             sys.dephasing = 4.
@@ -93,7 +93,7 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
 
             # Initial state of the system
             # is a spin coherent state |++...++>
-            ρ0 = css(Nj)[:]
+            ρ0 = blockdiagonal(css(Nj), dense=true)
         end
 
         Jx2 = Jx^2
@@ -101,42 +101,31 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
         Jz2 = Jz^2
 
         @info "Type of ρ: $(typeof(ρ0))"
-        @info "Size of ρ: $(length(ρ0)), $(length(ρ0.nzval)) non-zero elements"
+        @info "Size of ρ: $(size(ρ0))"
         @info "Density of noise superoperator: $(density(indprepost))"
 
         @timeit_debug to "op_creation" begin
-            Jyprepost = sup_pre_post(Jy)
-
-            Jxpre = sup_pre(Jx)
-            Jypre = sup_pre(Jy)
-            Jzpre = sup_pre(Jz)
-
-            Jx2pre = sup_pre(Jx2)
-            Jy2pre = sup_pre(Jy2)
-            Jz2pre = sup_pre(Jz2)
-
             H = ω * Jz
             dH = Jz
 
             # Kraus-like operator, trajectory-independent part
-            M0 = sparse(I - 1im * H * dt -
+            M0 = blockdiagonal(I - 1im * H * dt -
                         0.25 * dt * κ * Nj * I - # The Id comes from the squares of sigmaz_j
                         (κcoll/2) * Jy2 * dt)
 
-            @info "Density of M0: $(density(M0))"
 
             # Derivative of the Kraus-like operator wrt to ω
             dM = -1im * dH * dt
 
-            dMpre = sup_pre(dM)
-            dMpost = sup_post(dM)
-
             # TODO: Find better name
-            second_term = ((1 - η) * dt * κcoll * Jyprepost +
+            second_term = ((1 - η) * dt * κcoll * sup_pre_post(sparse(Jy)) +
                   dt * (κ/2) * indprepost)
+            dropzeros!(second_term)
 
             t = (1 : Ntime) * dt
             t = t[outsteps:outsteps:end]
+
+            indices = get_superop_indices(second_term, ρ0)
         end
     end
 
@@ -164,9 +153,6 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
         M = (M0 + sqrt(η * κcoll) * Jy * 1. +
                     η * (κcoll/2) * Jy2 * (1. ^2 - dt))
 
-        Mpre = sup_pre(M)
-        Mpost = sup_post(M)
-
         # Output variables
         jx = similar(t)
         jy = similar(t)
@@ -183,8 +169,8 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
         for jt = 1 : Ntime
             @timeit_debug to "current" begin
                 # Homodyne current (Eq. 35)
-                mul!(tmp1, Jypre, ρ)
-                dy = 2 * sqrt(κcoll * η) * trace(tmp1) * dt + dW()
+                mul!(tmp1, Jy, ρ)
+                dy = 2 * sqrt(κcoll * η) * tr(tmp1) * dt + dW()
             end
 
             # Kraus operator Eq. (36)
@@ -193,62 +179,72 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
                     η * (κcoll/2) * Jy2 * (dy^2 - dt))
             end
 
-            @timeit_debug to "sup_creation" begin
-                @timeit_debug to "pre" fast_sup_pre!(Mpre, M)
-                @timeit_debug to "post" fast_sup_post!(Mpost, M)
-            end
-
             #@info "Eigvals" eigvals(Hermitian(Matrix(reshape(ρ, size(Jx)))))[1]
             @timeit_debug to "dynamics" begin
                 # Evolve the density operator
                 # Non-allocating code for
                 # new_ρ = Mpre * Mpost * ρ + second_term * ρ
-                mul!(tmp1, Mpost, ρ)
-                mul!(new_ρ, Mpre, tmp1)
-                mul!(new_ρ, second_term, ρ, 1., 1.)
+                mul!(tmp1, ρ, M')
+                mul!(new_ρ, M, tmp1)
+                apply_superop!(tmp1, second_term, ρ, indices)
+
+                # TODO: Replace with broadcasting once implemented
+                for (i, b) in enumerate(blocks(new_ρ))
+                    b .+= tmp1.blocks[i]
+                end
 
                 zchop!(new_ρ) # Round off elements smaller than 1e-14
-
-                tr_ρ = trace(new_ρ)
+                tr_ρ = tr(new_ρ)
 
                 # Evolve the unnormalized derivative wrt ω
 
                 # Non-allocating code for
                 # τ = (Mpre * (Mpost * τ  +  dMpost * ρ) + dMpre * Mpost * ρ +
                 #      second_term * τ )/ tr_ρ;
-                mul!(tmp1, dMpost, ρ)
-                mul!(tmp1, Mpost, τ, 1., 1.)
-                mul!(tmp2, second_term, τ)
-                mul!(tmp2, Mpre, tmp1, 1., 1.)
-                mul!(tmp1, Mpost, ρ)
-                mul!(tmp2, dMpre, tmp1, 1., 1.)
+                mul!(tmp1, ρ, dM')
+                mul!(tmp1, τ, M', 1., 1.)
+                apply_superop!(tmp2, second_term, τ, indices)
+                mul!(tmp2, M, tmp1, 1., 1.)
+                mul!(tmp1, ρ, M')
+                mul!(tmp2, dM, tmp1, 1., 1.)
                 τ .= tmp2
-                τ ./= tr_ρ
+
+                # TODO: Use broadcasting when it is implemented
+                for b in blocks(τ)
+                    b ./= tr_ρ
+                end
+
 
                 zchop!(τ) # Round off elements smaller than 1e-14
 
-                tr_τ = trace(τ)
+                tr_τ = tr(τ)
 
                 # Now we can renormalize ρ and its derivative wrt ω
-                ρ .= new_ρ ./ tr_ρ
-                dρ .= τ .- tr_τ .* ρ
+
+                # TODO: Use broadcasting when it is implemented
+                for (i, b) in enumerate(blocks(ρ))
+                    b .= new_ρ.blocks[i] ./ tr_ρ
+                end
+                for (i, b) in enumerate(blocks(dρ))
+                    b .= τ.blocks[i] .- tr_τ .* ρ.blocks[i]
+                end
             end
 
             if jt % outsteps == 0
                 @timeit_debug to "Output" begin
-                    jx[jto] = real(trace(mul!(tmp1, Jxpre, ρ)))
-                    jy[jto] = real(trace(mul!(tmp1, Jypre, ρ)))
-                    jz[jto] = real(trace(mul!(tmp1, Jzpre, ρ)))
+                    jx[jto] = real(tr(mul!(tmp1, Jx, ρ)))
+                    jy[jto] = real(tr(mul!(tmp1, Jy, ρ)))
+                    jz[jto] = real(tr(mul!(tmp1, Jz, ρ)))
 
-                    jx2[jto] = real(trace(mul!(tmp1, Jx2pre, ρ)))
-                    jy2[jto] = real(trace(mul!(tmp1, Jy2pre, ρ)))
-                    jz2[jto] = real(trace(mul!(tmp1, Jz2pre, ρ)))
+                    jx2[jto] = real(tr(mul!(tmp1, Jx2, ρ)))
+                    jy2[jto] = real(tr(mul!(tmp1, Jy2, ρ)))
+                    jz2[jto] = real(tr(mul!(tmp1, Jz2, ρ)))
 
                     # We evaluate the classical FI for the continuous measurement
                     FisherT[jto] = real(tr_τ^2)
 
                     # We evaluate the QFI for a final strong measurement done at time t
-                    @timeit_debug to "QFI" QFisherT[jto] = QFI_block(reshape(ρ, size(Jy)), reshape(dρ, size(Jy)), Nj)
+                    @timeit_debug to "QFI" QFisherT[jto] = QFI(ρ, dρ)
 
                     jto += 1
                 end
