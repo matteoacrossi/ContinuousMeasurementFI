@@ -9,7 +9,7 @@ obj can be a scipy.sparse matrix or a qutip Qobj
 function tosparse(obj::PyObject)
     # This is just a wrapper to the ugly py"..." syntax
     (I, J, V, m, n) = pystuff.sparse_to_ijv(obj)
-    return sparse(I, J, V, m, n)
+    return sparse(Int64.(I), Int64.(J), V, Int64(m), Int64(n))
 end
 
 """
