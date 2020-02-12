@@ -198,85 +198,75 @@ struct Indices{T}
     jc::Array{T, 1}
 end
 
-"""
-    apply_superop!(C::BlockDiagonal, A::SparseMatrixCSC{Ti, Tv}, B::BlockDiagonal) -> C
+struct SuperOperator{Tv, Ti <: Integer}
+    indices::Indices{Ti}
+    values::Array{Tv}
 
-Apply the superoperator A (in Liouville form) to the matrix B and store the result in C.
+    function SuperOperator{Tv, Ti}(A::SparseMatrixCSC{Tv, Ti}) where Tv where Ti <: Integer
+        N = Int(sqrt(size(A, 1)))
+        Nj = nspins(N)
+        row, col, val = findnz(A)
+        bs = block_sizes(Nj)
+        blockindices = cumsum(vcat(1, bs[1:end-1]))
 
-"""
-function apply_superop!(C::BlockDiagonal, A::SparseMatrixCSC{Ti, Tv}, B::BlockDiagonal) where Ti where Tv
-    return apply_superop!(C, A, B, get_superop_indices(A, B))
-end
+        irow = (row .- 1) .% N .+ 1
+        jrow = (row .- 1) .÷ N .+ 1
+        ir = similar(irow)
+        jr = similar(jrow)
 
-""" get_superop_indices(A::SparseMatrixCSC{Ti, Tv}, B::BlockDiagonal)
+        t1 = sum(Int.(floor.(reshape(irow, :, 1) ./ blockindices[2:end]')) .>= 1, dims=2) .+ 1
+        t2 = sum(Int.(floor.(reshape(jrow, :, 1) ./ blockindices[2:end]')) .>= 1, dims=2) .+ 1
 
-Returns the Indices structure for the action of operator A onto the matrix B
-"""
-function get_superop_indices(A::SparseMatrixCSC{Ti, Tv}, B::BlockDiagonal) where Ti where Tv
+        br = t1 .* (t1 .== t2)
 
-    N = size(B, 1)
-    row, col, val = findnz(A)
-    bs = first.(blocksizes(B))
-
-    blockindices = cumsum(vcat(1, bs[1:end-1]))
-
-    irow = (row .- 1) .% N .+ 1
-    jrow = (row .- 1) .÷ N .+ 1
-    ir = similar(irow)
-    jr = similar(jrow)
-
-    t1 = sum(Int.(floor.(reshape(irow, :, 1) ./ blockindices[2:end]')) .>= 1, dims=2) .+ 1
-    t2 = sum(Int.(floor.(reshape(jrow, :, 1) ./ blockindices[2:end]')) .>= 1, dims=2) .+ 1
-
-    br = t1 .* (t1 .== t2)
-
-    @simd for i = 1:length(irow)
-        if br[i] > 0
-            ir[i] = irow[i] - blockindices[br[i]] + 1
-            jr[i] = jrow[i] - blockindices[br[i]] + 1
-        end
-    end
-
-    icol = (col .- 1) .% N .+ 1
-    jcol = (col .- 1) .÷ N .+ 1
-
-    ic = similar(icol)
-    jc = similar(jcol)
-
-    t1 .= sum(Int.(floor.(reshape(icol, :, 1) ./ blockindices[2:end]')) .>= 1, dims=2) .+ 1
-    t2 .= sum(Int.(floor.(reshape(jcol, :, 1) ./ blockindices[2:end]')) .>= 1, dims=2) .+ 1
-
-    bc = t1 .* (t1 .== t2)
-
-    @simd for i = 1:length(icol)
-        if bc[i] > 0
-            ic[i] = icol[i] - blockindices[bc[i]] + 1
-            jc[i] = jcol[i] - blockindices[bc[i]] + 1
-        end
-    end
-
-    return Indices(br[:], bc[:], ir, jr, ic, jc)
-end
-
-"""
-    apply_superop!(C::BlockDiagonal, A::SparseMatrixCSC{Ti, Tv}, B::BlockDiagonal, indices::Indices) -> C
-
-Apply the superoperator A (in Liouville form) to the matrix B and store the result in C, using the provided
-indices for much faster operation
-"""
-function apply_superop!(C::BlockDiagonal, A::SparseMatrixCSC{Ti, Tv}, B::BlockDiagonal, indices::Indices{Tv}) where Ti where Tv
-        val = nonzeros(A)
-        fill!(C, zero(eltype(C)))
-        @simd for i = 1 : length(val)
-            if indices.bc[i] > 0
-                tmp = val[i] * B.blocks[indices.bc[i]][indices.ic[i], indices.jc[i]]
-                if tmp != 0.0
-                    C.blocks[indices.br[i]][indices.ir[i], indices.jr[i]] += tmp
-                end
+        @simd for i = 1:length(irow)
+            if br[i] > 0
+                ir[i] = irow[i] - blockindices[br[i]] + 1
+                jr[i] = jrow[i] - blockindices[br[i]] + 1
             end
         end
-        return C
+
+        icol = (col .- 1) .% N .+ 1
+        jcol = (col .- 1) .÷ N .+ 1
+
+        ic = similar(icol)
+        jc = similar(jcol)
+
+        t1 .= sum(Int.(floor.(reshape(icol, :, 1) ./ blockindices[2:end]')) .>= 1, dims=2) .+ 1
+        t2 .= sum(Int.(floor.(reshape(jcol, :, 1) ./ blockindices[2:end]')) .>= 1, dims=2) .+ 1
+
+        bc = t1 .* (t1 .== t2)
+
+        @simd for i = 1:length(icol)
+            if bc[i] > 0
+                ic[i] = icol[i] - blockindices[bc[i]] + 1
+                jc[i] = jcol[i] - blockindices[bc[i]] + 1
+            end
+        end
+
+        indices = Indices{Ti}(br[:], bc[:], ir, jr, ic, jc)
+        values = val
+        new(indices, values)
     end
+end
+
+SuperOperator(A::SparseMatrixCSC{Tv, Ti}) where Ti <: Integer where Tv = SuperOperator{Tv, Ti}(A)
+
+function apply_superop!(C::BlockDiagonal, A::SuperOperator{Tv, Ti}, B::BlockDiagonal) where Ti <: Integer where Tv
+    fill!(C, zero(eltype(C)))
+    val::Array{Tv, 1} = A.values
+    indices = A.indices
+    @simd for i = 1 : length(val)
+        if A.indices.bc[i] > 0
+            tmp = val[i] * B.blocks[indices.bc[i]][indices.ic[i], indices.jc[i]]
+            if tmp != 0.0
+                C.blocks[indices.br[i]][indices.ir[i], indices.jr[i]] += tmp
+            end
+        end
+    end
+    return C
+end
+
 
 import ZChop: zchop!
 # Specialize zchop! to BlockDiagonal
