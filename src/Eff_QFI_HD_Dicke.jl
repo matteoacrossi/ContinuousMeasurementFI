@@ -14,7 +14,7 @@ function squeezing_param(N, ΔJ1, J2m, J3m)
     return (J2m .^2 + J3m .^2) ./ (N * ΔJ1)
 end
 
-function density(s)
+function density(s::SparseMatrixCSC)
     return length(s.nzval) / (s.n * s.m)
 end
 
@@ -125,10 +125,12 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
             t = (1 : Ntime) * dt
             t = t[outsteps:outsteps:end]
 
-            indices = get_superop_indices(second_term, ρ0)
+            second_term = SuperOperator(second_term)
+            #indices = get_superop_indices(second_term, ρ0)
         end
     end
 
+    println(typeof(second_term))
     # traj_count = 0
     # Run evolution for each trajectory, and build up the average
     # for FI and final strong measurement QFI
@@ -186,7 +188,7 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
                 # new_ρ = Mpre * Mpost * ρ + second_term * ρ
                 mul!(tmp1, ρ, M')
                 mul!(new_ρ, M, tmp1)
-                apply_superop!(tmp1, second_term, ρ, indices)
+                @timeit to "superop" apply_superop!(tmp1, second_term, ρ)
 
                 # TODO: Replace with broadcasting once implemented
                 for (i, b) in enumerate(blocks(new_ρ))
@@ -203,7 +205,7 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
                 #      second_term * τ )/ tr_ρ;
                 mul!(tmp1, ρ, dM')
                 mul!(tmp1, τ, M', 1., 1.)
-                apply_superop!(tmp2, second_term, τ, indices)
+                apply_superop!(tmp2, second_term, τ)
                 mul!(tmp2, M, tmp1, 1., 1.)
                 mul!(tmp1, ρ, M')
                 mul!(tmp2, dM, tmp1, 1., 1.)
@@ -222,11 +224,11 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
                 # Now we can renormalize ρ and its derivative wrt ω
 
                 # TODO: Use broadcasting when it is implemented
-                for (i, b) in enumerate(blocks(ρ))
-                    b .= new_ρ.blocks[i] ./ tr_ρ
+                for i = 1:length(ρ.blocks)
+                    ρ.blocks[i] .= new_ρ.blocks[i] ./ tr_ρ
                 end
-                for (i, b) in enumerate(blocks(dρ))
-                    b .= τ.blocks[i] .- tr_τ .* ρ.blocks[i]
+                for i = 1:length(dρ.blocks)
+                    dρ.blocks[i] .= τ.blocks[i] .- tr_τ .* ρ.blocks[i]
                 end
             end
 
