@@ -81,14 +81,11 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
     @timeit_debug to "Preparation" begin
         Ntime = Int(floor(Tfinal/dt)) # Number of timesteps
 
-        @timeit_debug to "PIQS" begin
+        @timeit to "PIQS" begin
             # Spin operators
             (Jx, Jy, Jz) = map(blockdiagonal, jspin(Nj))
 
-            sys = piqs.Dicke(Nj)
-            sys.dephasing = 4.
-
-            liouvillian = tosparse(sys.liouvillian())
+            liouvillian = sparse_fromfile("liouvillian_$Nj.npz")
             indprepost = liouvillian + Nj*I
 
             # Initial state of the system
@@ -134,7 +131,7 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
     # traj_count = 0
     # Run evolution for each trajectory, and build up the average
     # for FI and final strong measurement QFI
-    @timeit_debug to "trajectories" begin
+    @timeit to "trajectories" begin
     result = @showprogress 1 "Computing..." @distributed (+) for ktraj = 1 : Ntraj
         ρ = copy(ρ0) # Assign initial state to each trajectory
 
@@ -188,7 +185,7 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
                 # new_ρ = Mpre * Mpost * ρ + second_term * ρ
                 mul!(tmp1, ρ, M')
                 mul!(new_ρ, M, tmp1)
-                @timeit to "superop" apply_superop!(tmp1, second_term, ρ)
+                @timeit_debug to "superop" apply_superop!(tmp1, second_term, ρ)
 
                 # TODO: Replace with broadcasting once implemented
                 for (i, b) in enumerate(blocks(new_ρ))

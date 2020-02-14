@@ -14,7 +14,7 @@ def sparse_to_ijv(sparsematrix):
     I, J = sparsematrix.nonzero()
 
     # Get the vector of values
-    V = np.array([sparsematrix[i,j] for (i,j) in zip(I,J)])
+    V = np.array([sparsematrix[i, j] for (i, j) in zip(I, J)])
 
     # Convert to 1-based indexing
     I += 1
