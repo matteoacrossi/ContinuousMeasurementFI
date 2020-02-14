@@ -1,20 +1,21 @@
 name = "ContinuousMeasurementFI"
 uuid = "0cf28d70-a90b-11e8-0416-0fb7e42d9e6f"
 authors = ["Matteo Rossi <teo.red90@gmail.com>"]
-version = "0.2.0"
+version = "0.3.1"
 
 [deps]
+BlockDiagonals = "0a1fb500-61f7-11e9-3c65-f5ef3456f9f0"
 Distributed = "8ba89e20-285c-5b6f-9357-94700520ee1b"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+ProgressMeter = "92933f4c-e287-5a05-a399-4b506db050ca"
 PyCall = "438e738f-606a-5dbb-bf0a-cddfbfd45ab0"
 SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 TimerOutputs = "a759f4b9-e2f1-59dc-863e-4aeb61b1ea8f"
 ZChop = "8603256b-76ad-53fe-b511-38a38e6437cd"
-ProgressMeter = "92933f4c-e287-5a05-a399-4b506db050ca"
 
 [extras]
-Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
 test = ["Test", "Random"]
