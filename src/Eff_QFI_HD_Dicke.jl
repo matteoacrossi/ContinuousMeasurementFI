@@ -177,8 +177,10 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
 
             # Kraus operator Eq. (36)
             @timeit_debug to "op_creation" begin
-                M = (M0 + sqrt(η * κcoll) * Jy * dy +
-                    η * (κcoll/2) * Jy2 * (dy^2 - dt))
+                for i in 1:length(M.blocks)
+                    M.blocks[i] = (M0.blocks[i] + sqrt(η * κcoll) * Jy.blocks[i] * dy +
+                                   η * (κcoll/2) * Jy2.blocks[i] * (dy^2 - dt))
+                end
             end
 
             #@info "Eigvals" eigvals(Hermitian(Matrix(reshape(ρ, size(Jx)))))[1]
@@ -186,9 +188,12 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
                 # Evolve the density operator
                 # Non-allocating code for
                 # new_ρ = Mpre * Mpost * ρ + second_term * ρ
-                mul!(tmp1, ρ, M')
-                mul!(new_ρ, M, tmp1)
-                @timeit to "superop" apply_superop!(tmp1, second_term, ρ)
+                @timeit_debug to "rho" begin
+                    mul!(tmp1, ρ, M')
+                    mul!(new_ρ, M, tmp1)
+                    @timeit_debug to "superop" apply_superop!(tmp1, second_term, ρ)
+                end
+
 
                 # TODO: Replace with broadcasting once implemented
                 for (i, b) in enumerate(blocks(new_ρ))
@@ -203,12 +208,14 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
                 # Non-allocating code for
                 # τ = (Mpre * (Mpost * τ  +  dMpost * ρ) + dMpre * Mpost * ρ +
                 #      second_term * τ )/ tr_ρ;
+                @timeit_debug to "tau" begin
                 mul!(tmp1, ρ, dM')
                 mul!(tmp1, τ, M', 1., 1.)
-                apply_superop!(tmp2, second_term, τ)
+                @timeit_debug to "superop" apply_superop!(tmp2, second_term, τ)
                 mul!(tmp2, M, tmp1, 1., 1.)
                 mul!(tmp1, ρ, M')
                 mul!(tmp2, dM, tmp1, 1., 1.)
+                end
                 τ .= tmp2
 
                 # TODO: Use broadcasting when it is implemented
@@ -222,13 +229,14 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
                 tr_τ = tr(τ)
 
                 # Now we can renormalize ρ and its derivative wrt ω
-
+                @timeit_debug to "normalization" begin
                 # TODO: Use broadcasting when it is implemented
                 for i = 1:length(ρ.blocks)
                     ρ.blocks[i] .= new_ρ.blocks[i] ./ tr_ρ
                 end
                 for i = 1:length(dρ.blocks)
                     dρ.blocks[i] .= τ.blocks[i] .- tr_τ .* ρ.blocks[i]
+                end
                 end
             end
 
