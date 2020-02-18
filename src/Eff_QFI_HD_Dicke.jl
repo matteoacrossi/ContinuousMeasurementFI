@@ -174,8 +174,10 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
 
             # Kraus operator Eq. (36)
             @timeit_debug to "op_creation" begin
-                M = (M0 + sqrt(η * κcoll) * Jy * dy +
-                    η * (κcoll/2) * Jy2 * (dy^2 - dt))
+                for i in 1:length(M.blocks)
+                    M.blocks[i] = (M0.blocks[i] + sqrt(η * κcoll) * Jy.blocks[i] * dy +
+                                η * (κcoll/2) * Jy2.blocks[i] * (dy^2 - dt))
+                end
             end
 
             #@info "Eigvals" eigvals(Hermitian(Matrix(reshape(ρ, size(Jx)))))[1]
