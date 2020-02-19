@@ -83,7 +83,7 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
 
         @timeit_debug to "PIQS" begin
             # Spin operators
-            (Jx, Jy, Jz) = map(blockdiagonal, jspin(Nj))
+            (Jx, Jy, Jz) = map(x-> blockdiagonal(x, dense=true), jspin(Nj))
 
             sys = piqs.Dicke(Nj)
             sys.dephasing = 4.
@@ -111,11 +111,12 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
             # Kraus-like operator, trajectory-independent part
             M0 = blockdiagonal(I - 1im * H * dt -
                         0.25 * dt * κ * Nj * I - # The Id comes from the squares of sigmaz_j
-                        (κcoll/2) * Jy2 * dt)
+                        (κcoll/2) * Jy2 * dt, dense=true)
 
 
             # Derivative of the Kraus-like operator wrt to ω
             dM = -1im * dH * dt
+            dMt = copy(dM')
 
             # TODO: Find better name
             second_term = ((1 - η) * dt * κcoll * sup_pre_post(sparse(Jy)) +
@@ -154,6 +155,7 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
         # and Mpost
         M = (M0 + sqrt(η * κcoll) * Jy * 1. +
                     η * (κcoll/2) * Jy2 * (1. ^2 - dt))
+        Mt = copy(M')
 
         # Output variables
         jx = similar(t)
@@ -178,9 +180,11 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
             # Kraus operator Eq. (36)
             @timeit_debug to "op_creation" begin
                 for i in 1:length(M.blocks)
-                    M.blocks[i] = (M0.blocks[i] + sqrt(η * κcoll) * Jy.blocks[i] * dy +
-                                   η * (κcoll/2) * Jy2.blocks[i] * (dy^2 - dt))
+                    M.blocks[i] .= (M0.blocks[i] .+ sqrt(η * κcoll) .* Jy.blocks[i] .* dy .+
+                                   η .* (κcoll/2) .* Jy2.blocks[i] .* (dy^2 - dt))
                 end
+
+                copy!(Mt, M')
             end
 
             #@info "Eigvals" eigvals(Hermitian(Matrix(reshape(ρ, size(Jx)))))[1]
@@ -189,7 +193,7 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
                 # Non-allocating code for
                 # new_ρ = Mpre * Mpost * ρ + second_term * ρ
                 @timeit_debug to "rho" begin
-                    mul!(tmp1, ρ, M')
+                    mul!(tmp1, ρ, M)
                     mul!(new_ρ, M, tmp1)
                     @timeit_debug to "superop" apply_superop!(tmp1, second_term, ρ)
                 end
@@ -209,11 +213,11 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
                 # τ = (Mpre * (Mpost * τ  +  dMpost * ρ) + dMpre * Mpost * ρ +
                 #      second_term * τ )/ tr_ρ;
                 @timeit_debug to "tau" begin
-                mul!(tmp1, ρ, dM')
-                mul!(tmp1, τ, M', 1., 1.)
+                mul!(tmp1, ρ, dMt)
+                mul!(tmp1, τ, M, 1., 1.)
                 @timeit_debug to "superop" apply_superop!(tmp2, second_term, τ)
                 mul!(tmp2, M, tmp1, 1., 1.)
-                mul!(tmp1, ρ, M')
+                mul!(tmp1, ρ, M)
                 mul!(tmp2, dM, tmp1, 1., 1.)
                 end
                 τ .= tmp2
