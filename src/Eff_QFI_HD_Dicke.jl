@@ -193,7 +193,7 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
                 # Non-allocating code for
                 # new_ρ = Mpre * Mpost * ρ + second_term * ρ
                 @timeit_debug to "rho" begin
-                    mul!(tmp1, ρ, M)
+                    mul!(tmp1, ρ, Mt)
                     mul!(new_ρ, M, tmp1)
                     @timeit_debug to "superop" apply_superop!(tmp1, second_term, ρ)
                 end
@@ -214,10 +214,10 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
                 #      second_term * τ )/ tr_ρ;
                 @timeit_debug to "tau" begin
                 mul!(tmp1, ρ, dMt)
-                mul!(tmp1, τ, M, 1., 1.)
+                mul!(tmp1, τ, Mt, 1., 1.)
                 @timeit_debug to "superop" apply_superop!(tmp2, second_term, τ)
                 mul!(tmp2, M, tmp1, 1., 1.)
-                mul!(tmp1, ρ, M)
+                mul!(tmp1, ρ, Mt)
                 mul!(tmp2, dM, tmp1, 1., 1.)
                 end
                 τ .= tmp2
