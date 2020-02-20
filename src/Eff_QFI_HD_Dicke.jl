@@ -151,11 +151,9 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
         tmp1 = similar(ρ0)
         tmp2 = similar(ρ0)
 
-        # Temporary operator in order to allocate Mpre
-        # and Mpost
-        M = (M0 + sqrt(η * κcoll) * Jy * 1. +
-                    η * (κcoll/2) * Jy2 * (1. ^2 - dt))
-        Mt = copy(M')
+        # Allocate the Kraus operator
+        M = similar(M0)
+        Mt = similar(M)
 
         # Output variables
         jx = similar(t)
