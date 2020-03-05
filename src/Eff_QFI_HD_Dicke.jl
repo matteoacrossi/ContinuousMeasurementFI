@@ -57,8 +57,8 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
     κcoll::Real = 1.,                # Collective noise strength
     ω::Real = 0.0,                   # Frequency of the Hamiltonian
     η::Real = 1.,                    # Measurement efficiency
-    outpoints = 0,                 # Number of output points
-    to = TimerOutput())
+    outpoints = 0,                   # Number of output points
+    to = TimerOutput(), file_channel=nothing)
 
     @info "Eff_QFI_HD_Dicke starting"
     @info "Parameters" Nj Ntraj Tfinal dt κ κcoll ω η outpoints
