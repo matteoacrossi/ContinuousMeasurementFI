@@ -270,6 +270,13 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
         xi2y = squeezing_param(Nj, Δjy2, jx, jz)
         xi2z = squeezing_param(Nj, Δjz2, jx, jy)
 
+        if !isnothing(file_channel)
+            result = (FI=FisherT, QFI=QFisherT,
+                      Jx=jx, Jy=jy, Jz=jz,
+                      Δjx=Δjx2, Δjy=Δjy2, Δjz=Δjz2,
+                      xi2x=xi2x, xi2y=xi2y, xi2z=xi2z)
+            put!(file_channel, result)
+        end
         # Use the reduction feature of @distributed for
         # (at the end of each cicle, sum the result to result)
         hcat(FisherT, QFisherT, jx, jy, jz, Δjx2, Δjy2, Δjz2, xi2x, xi2y, xi2z)
@@ -331,7 +338,7 @@ function Eff_QFI_HD_Dicke_0(Nj::Int64, # Number of spins
     ω::Real = 0.0,                   # Frequency of the Hamiltonian
     η::Real = 1.,                    # Measurement efficiency
     outpoints = 0,                 # Number of output points
-    to = TimerOutput())
+    to = TimerOutput(), file_channel=nothing)
 
     @info "Eff_QFI_HD_Dicke starting"
 
@@ -537,6 +544,13 @@ function Eff_QFI_HD_Dicke_0(Nj::Int64, # Number of spins
         xi2y = squeezing_param(Nj, Δjy2, jx, jz)
         xi2z = squeezing_param(Nj, Δjz2, jx, jy)
 
+        if !isnothing(file_channel)
+            result = (FI=FisherT, QFI=QFisherT,
+                      Jx=jx, Jy=jy, Jz=jz,
+                      Δjx=Δjx2, Δjy=Δjy2, Δjz=Δjz2,
+                      xi2x=xi2x, xi2y=xi2y, xi2z=xi2z)
+            put!(file_channel, result)
+        end
         # Use the reduction feature of @distributed for
         # (at the end of each cicle, sum the result to result)
         hcat(FisherT, QFisherT, jx, jy, jz, Δjx2, Δjy2, Δjz2, xi2x, xi2y, xi2z)
