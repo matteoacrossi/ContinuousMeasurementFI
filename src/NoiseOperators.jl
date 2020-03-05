@@ -253,7 +253,9 @@ end
 SuperOperator(A::SparseMatrixCSC{Tv, Ti}) where Ti <: Integer where Tv = SuperOperator{Tv, Ti}(A)
 
 function apply_superop!(C::BlockDiagonal, A::SuperOperator{Tv, Ti}, B::BlockDiagonal) where Ti <: Integer where Tv
-    fill!(C, zero(eltype(C)))
+    for b in blocks(C)
+        fill!(b, zero(eltype(b)))
+    end
     val::Array{Tv, 1} = A.values
     indices = A.indices
     @simd for i = 1 : length(val)
