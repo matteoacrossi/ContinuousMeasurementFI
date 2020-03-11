@@ -27,13 +27,17 @@ module ContinuousMeasurementFI
     using LinearAlgebra
 
     export Molmer_QFI_GHZ, Molmer_qfi_transverse, uncond_QFI_transverse
+    export QFI, squeezing_param
     export Unconditional_QFI, Unconditional_QFI_Dicke
     export Eff_QFI_HD
     export Eff_QFI_HD_Dicke, Eff_QFI_HD_Dicke_0
 
     export liouvillian, jspin, css
+    export Model, ModelParameters, State, updatestate!, updatekraus!, measure_current, expectation_value!
+    export InitializeModel, coherentspinstate
 
     include("NoiseOperators.jl")
+    include("model.jl")
     include("States.jl")
     include("Fisher.jl")
     include("Molmer_QFI.jl")
@@ -41,6 +45,8 @@ module ContinuousMeasurementFI
 
     include("Eff_QFI_HD_Dicke.jl")
     include("Eff_QFI_HD.jl")
+
+    include("utils.jl")
 
     """
         (t, FI, QFI) = Eff_QFI_HD(Nj, Ntraj, Tfinal, dt; kwargs... )

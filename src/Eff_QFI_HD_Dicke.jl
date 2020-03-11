@@ -3,27 +3,129 @@ using Distributed
 using TimerOutputs
 using ProgressMeter
 
-
-function squeezing_param(N, ΔJ1, J2m, J3m)
-    """
-        ξ2 = squeezing_param(N, ΔJ1, J2m, J3m)
-
-    Returns the squeezing parameter defined, e.g.,
-    in Phys. Rev. A 65, 061801 (2002), Eq. (1).
-    """
-    return (J2m .^2 + J3m .^2) ./ (N * ΔJ1)
-end
-
-function density(s::SparseMatrixCSC)
-    return length(s.nzval) / (s.n * s.m)
-end
-
-function Unconditional_QFI_Dicke(Nj::Int64, Tfinal::Real, dt::Real;
+function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
+    Ntraj::Int64,                    # Number of trajectories
+    Tfinal::Real,                    # Final time
+    dt::Real;                        # Time step
     κ::Real = 1.,                    # Independent noise strength
     κcoll::Real = 1.,                # Collective noise strength
-    ω::Real = 0.0                   # Frequency of the Hamiltonian
-    )
-    return Eff_QFI_HD_Dicke(Nj, 1, Tfinal, dt; κ=κ, κcoll = κcoll, ω=ω, η=0.0)
+    ω::Real = 0.0,                   # Frequency of the Hamiltonian
+    η::Real = 1.,                    # Measurement efficiency
+    outpoints = 0,                   # Number of output points
+    to = TimerOutput(), file_channel=nothing)
+
+    @info "Eff_QFI_HD_Dicke starting"
+    @info "Parameters" Nj Ntraj Tfinal dt κ κcoll ω η outpoints
+
+    outsteps = 1
+
+    if outpoints > 0
+        try
+            outsteps = Int(round(Tfinal / dt / outpoints, digits=3))
+        catch InexactError
+            @warn "The requested $outpoints output points does not divide
+            the total time steps. Using the full time output."
+        end
+    end
+
+    @info "Output every $outsteps steps"
+
+    Ntime = Int(floor(Tfinal/dt)) # Number of timesteps
+
+    modelparams = ModelParameters(Nj, κ, κcoll, ω, η, dt)
+
+    model = InitializeModel(modelparams)
+    initial_state = coherentspinstate(Nj)
+
+    t = (1 : Ntime) * dt
+    t = t[outsteps:outsteps:end]
+
+    # Run evolution for each trajectory, and build up the average
+    # for FI and final strong measurement QFI
+    @timeit_debug to "trajectories" begin
+    #result = @showprogress 1 "Computing..." @distributed (+) for ktraj = 1 : Ntraj
+    result = @distributed (+) for ktraj = 1 : Ntraj
+        state = State(copy(initial_state.ρ))
+        # Output variables
+        jx = similar(t)
+        jy = similar(t)
+        jz = similar(t)
+
+        jx2 = similar(t)
+        jy2 = similar(t)
+        jz2 = similar(t)
+
+        FisherT = similar(t)
+        QFisherT = similar(t)
+
+        jto = 1 # Counter for the output
+        for jt = 1 : Ntime
+            @timeit_debug to "current" dy = measure_current(state, model)
+            @timeit_debug to "kraus" updatekraus!(model, dy)
+            @timeit_debug to "state update" tr_ρ, tr_τ = updatestate!(state, model)
+            if jt % outsteps == 0
+                @timeit_debug to "Output" begin
+                    jx[jto] = expectation_value!(state, model.Jx)
+                    jy[jto] = expectation_value!(state, model.Jy)
+                    jz[jto] = expectation_value!(state, model.Jz)
+
+                    jx2[jto] = expectation_value!(state, model.Jx2)
+                    jy2[jto] = expectation_value!(state, model.Jy2)
+                    jz2[jto] = expectation_value!(state, model.Jz2)
+
+                    # We evaluate the classical FI for the continuous measurement
+                    FisherT[jto] = real(tr_τ^2)
+
+                    # We evaluate the QFI for a final strong measurement done at time t
+                    @timeit_debug to "QFI" QFisherT[jto] = QFI(state)
+
+                    jto += 1
+                end
+            end
+
+        end
+
+        Δjx2 = jx2 - jx.^2
+        Δjy2 = jy2 - jy.^2
+        Δjz2 = jz2 - jz.^2
+
+        xi2x = squeezing_param(Nj, Δjx2, jy, jz)
+        xi2y = squeezing_param(Nj, Δjy2, jx, jz)
+        xi2z = squeezing_param(Nj, Δjz2, jx, jy)
+
+        if !isnothing(file_channel)
+            result = (FI=FisherT, QFI=QFisherT,
+                      Jx=jx, Jy=jy, Jz=jz,
+                      Δjx=Δjx2, Δjy=Δjy2, Δjz=Δjz2,
+                      xi2x=xi2x, xi2y=xi2y, xi2z=xi2z)
+            put!(file_channel, result)
+        end
+        # Use the reduction feature of @distributed for
+        # (at the end of each cicle, sum the result to result)
+        hcat(FisherT, QFisherT, jx, jy, jz, Δjx2, Δjy2, Δjz2, xi2x, xi2y, xi2z)
+    end
+    end
+
+    # Evaluate averages
+    jx = result[:, 3] / Ntraj
+    jy = result[:, 4] / Ntraj
+    jz = result[:, 5] / Ntraj
+
+    Δjx2 = result[:, 6] / Ntraj
+    Δjy2 = result[:, 7] / Ntraj
+    Δjz2 = result[:, 8] / Ntraj
+
+    xi2x = result[:, 9] / Ntraj
+    xi2y = result[:, 10] / Ntraj
+    xi2z = result[:, 11] / Ntraj
+
+    @info "Time details \n$to"
+    return (t=t,
+            FI=result[:,1] / Ntraj,
+            QFI=result[:,2] / Ntraj,
+            jx=jx, jy=jy, jz=jz,
+            Δjx=Δjx2, Δjy=Δjy2, Δjz=Δjz2,
+            xi2x=xi2x, xi2y=xi2y, xi2z=xi2z)
 end
 
 """
@@ -49,7 +151,7 @@ The function returns a tuple `(t, FI, QFI)` containing the time vector and the v
 * `η = 1`: measurement efficiency
 * `outpoints = 200`: save a total of outpoints timesteps
 """
-function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
+function Eff_QFI_HD_Dicke2(Nj::Int64, # Number of spins
     Ntraj::Int64,                    # Number of trajectories
     Tfinal::Real,                    # Final time
     dt::Real;                        # Time step

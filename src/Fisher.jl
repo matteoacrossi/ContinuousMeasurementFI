@@ -35,6 +35,7 @@ function QFI(ρ, dρ; abstol = 1e-5)
     return res
 end
 
+
 """
     QFI(ρ::BlockDiagonal, dρ::BlockDiagonal, N [, abstol])
 
@@ -55,4 +56,8 @@ function QFI(ρ::BlockDiagonal, dρ::BlockDiagonal; abstol = 1e-5)
         qfi += QFI(ρ.blocks[i], dρ.blocks[i])
     end
     return qfi
+end
+
+function QFI(state::State, abstol = 1e-5)
+    QFI(state.ρ, state.dρ)
 end
