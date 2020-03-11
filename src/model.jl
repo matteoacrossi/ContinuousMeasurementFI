@@ -1,7 +1,6 @@
 using BlockDiagonals
 using SparseArrays
 using LinearAlgebra
-
 struct ModelParameters
     Nj::Integer
     kind::Real
@@ -38,12 +37,6 @@ end
 struct KrausOperator
     M0::BlockDiagonal
     M::BlockDiagonal
-end
-
-function updatekraus!(M::KrausOperator, A::BlockDiagonal)
-    @inbounds for i in eachindex(M.M.blocks)
-        M.M.blocks[i] = M.M0.blocks[i] + A.blocks[i]
-    end
 end
 
 struct Model
@@ -109,20 +102,21 @@ function measure_current(state::State, model::Model)
     dW() = sqrt(model.params.dt) * randn() # Define the Wiener increment
     # Homodyne current (Eq. 35)
     mul!(state._tmp1, model.Jy, state.ρ)
-    2 * sqrt(model.params.kcoll * model.params.eta) * real(tr(state._tmp1)) * model.params.dt + dW()
+    return 2 * sqrt(model.params.kcoll * model.params.eta) * real(tr(state._tmp1)) * model.params.dt + dW()
 end
 
 function updatekraus!(model::Model, dy::Real)
     p = model.params
     # Kraus operator Eq. (36)
-    updatekraus!(model.M, sqrt(p.eta * p.kcoll) * model.Jy * dy +
-                            p.eta * (p.kcoll / 2) * model.Jy2 * (dy^2 - p.dt))
+    @inbounds for i in eachindex(model.M.M.blocks)
+        model.M.M.blocks[i] = model.M.M0.blocks[i] + sqrt(p.eta * p.kcoll) * model.Jy.blocks[i] * dy +
+        p.eta * (p.kcoll / 2) * model.Jy2.blocks[i] * (dy^2 - p.dt)
+    end
 end
 
 function updatestate!(state::State, model::Model)
     # Non-allocating code for
     # new_ρ = Mpre * Mpost * ρ + second_term * ρ
-
     mul!(state._tmp1, state.ρ, model.M.M')
     mul!(state._new_ρ, model.M.M, state._tmp1)
     apply_superop!(state._tmp1, model.second_term, state.ρ)
@@ -134,7 +128,6 @@ function updatestate!(state::State, model::Model)
 
     zchop!(state._new_ρ) # Round off elements smaller than 1e-14
     tr_ρ = tr(state._new_ρ)
-
     # Evolve the unnormalized derivative wrt ω
 
     # Non-allocating code for
@@ -147,17 +140,14 @@ function updatestate!(state::State, model::Model)
     mul!(state._tmp1, state.ρ, model.M.M')
     mul!(state._tmp2, model.dM, state._tmp1, 1., 1.)
 
-    state.τ .= state._tmp2
-
     # TODO: Use broadcasting when it is implemented
-    for b in blocks(state.τ)
-        b ./= tr_ρ
+    for i in eachindex(state.τ.blocks)
+        state.τ.blocks[i] .= state._tmp2.blocks[i] ./ tr_ρ
     end
 
     zchop!(state.τ) # Round off elements smaller than 1e-14
 
     tr_τ = tr(state.τ)
-
     # Now we can renormalize ρ and its derivative wrt ω
     # TODO: Use broadcasting when it is implemented
     for i = eachindex(state.ρ.blocks)
