@@ -54,7 +54,7 @@ struct Model
     dM::BlockDiagonal
 end
 
-function InitializeModel(modelparams::ModelParameters)
+function InitializeModel(modelparams::ModelParameters, liouvillianfile::Union{String, Nothing}=nothing)
     Nj = modelparams.Nj
     dt = modelparams.dt
     kcoll = modelparams.kcoll
@@ -65,11 +65,7 @@ function InitializeModel(modelparams::ModelParameters)
     # Spin operators
     (Jx, Jy, Jz) = map(blockdiagonal, jspin(Nj))
 
-    sys = piqs.Dicke(Nj)
-    sys.dephasing = 4.
-
-    liouvillian = tosparse(sys.liouvillian())
-    indprepost = liouvillian + Nj*I
+    indprepost = isnothing(liouvillianfile) ? initliouvillian(Nj) : initliouvillian(Nj, liouvillianfile)
 
     Jx2 = Jx^2
     Jy2 = Jy^2
@@ -96,6 +92,19 @@ function InitializeModel(modelparams::ModelParameters)
     second_term = SuperOperator(second_term)
 
     Model(modelparams, Jx, Jy, Jz, Jx2, Jy2, Jz2, H, dH, second_term, M, dM)
+end
+
+function initliouvillian(Nj::Integer)
+    sys = piqs.Dicke(Nj)
+    sys.dephasing = 4.
+
+    liouvillian = tosparse(sys.liouvillian())
+    return liouvillian + Nj*I
+end
+
+function initliouvillian(Nj::Integer, filename::String)
+    liouvillian = sparse_fromfile(filename)
+    return liouvillian + Nj*I
 end
 
 function measure_current(state::State, model::Model)

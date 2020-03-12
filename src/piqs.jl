@@ -1,4 +1,5 @@
 using SparseArrays
+using NPZ
 
 """
     tosparse(obj) -> SparseMatrixCSC
@@ -10,6 +11,13 @@ function tosparse(obj::PyObject)
     # This is just a wrapper to the ugly py"..." syntax
     (I, J, V, m, n) = pystuff.sparse_to_ijv(obj)
     return sparse(Int64.(I), Int64.(J), V, Int64(m), Int64(n))
+end
+
+"""
+"""
+function sparse_fromfile(filename)
+    data = npzread(filename)
+    return sparse(Int64.(data["arr_0"]), Int64.(data["arr_1"]), data["arr_2"], Int64(data["arr_3"]), Int64(data["arr_4"]))
 end
 
 """
