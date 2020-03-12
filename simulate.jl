@@ -55,6 +55,11 @@ s = ArgParseSettings()
         help = "Number of output points"
         arg_type = Int64
         default = 200
+
+    "--liouvillianfile"
+        help = "npz file with the liovuillian data"
+        arg_type = String
+        default = nothing
 end
 
 args = parse_args(s)
@@ -96,7 +101,7 @@ t = t[outsteps:outsteps:end]
 
 @info "Initializing model..."
 init_time = @elapsed begin
-@everywhere model = InitializeModel($modelparams)
+@everywhere model = InitializeModel($modelparams, args["liouvillianfile"])
 @everywhere initial_state = coherentspinstate($modelparams.Nj)
 end
 @info "Done in $init_time seconds..."
@@ -112,7 +117,7 @@ function write_to_file(file_channel, timevec, Ntraj)
         ds = d_create(fid, quantity, Float64, ((outpoints, Ntraj), (outpoints, -1)), "chunk", (outpoints, 1))
         datasets[quantity] = ds
     end
-    p = Progress(Ntraj, 1)
+    #p = Progress(Ntraj, 1)
     counter = 1
     @info "Writer ready!"
     while true
@@ -127,7 +132,7 @@ function write_to_file(file_channel, timevec, Ntraj)
                     end
                 end
             end
-            next!(p)
+            #next!(p)
             counter += 1
         catch InvalidStateException
             @info "Channel closed"
@@ -139,8 +144,15 @@ end
 
 # Starts the writer function on the main process
 
-file_channel = RemoteChannel(() -> Channel{NamedTuple}(32))
+file_channel = RemoteChannel(() -> Channel{NamedTuple}(200))
 writer = @spawnat 1 write_to_file(file_channel, t, args["Ntraj"])
+
+progress_channel = RemoteChannel(() -> Channel{Bool}(200))
+
+p = Progress(Ntraj * length(t))
+@async while take!(progress_channel)
+    next!(p)
+end
 
 @info "Starting trajectories simulation..."
 @sync @distributed for ktraj = 1 : Ntraj
@@ -181,9 +193,8 @@ writer = @spawnat 1 write_to_file(file_channel, t, args["Ntraj"])
             QFisherT[jto] = QFI(state)
 
             jto += 1
-
+            put!(progress_channel, true)
         end
-
     end
 
     Δjx2 = jx2 - jx.^2
@@ -203,6 +214,15 @@ writer = @spawnat 1 write_to_file(file_channel, t, args["Ntraj"])
     else
         @info "No file channel!"
     end
+end
+put!(progress_channel, false)
+for i in eachindex(workers())
+    fetch(@spawnat i begin
+        result = read(`grep VmHWM /proc/$(getpid())/status`, String)
+        peakmem = tryparse(Int, String(match(r"(\d+)", result)[1]))
+
+        @info "Peak memory in GB:" peakmem / 1024^3
+    end)
 end
 
 close(file_channel)
