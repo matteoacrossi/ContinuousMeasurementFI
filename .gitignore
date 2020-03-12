@@ -6,5 +6,5 @@ deps/deps.jl
 *~
 *.DS_Store
 *.out
-#Manifest.toml
+Manifest.toml
 *__pycache__
