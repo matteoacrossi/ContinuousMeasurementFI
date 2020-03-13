@@ -190,7 +190,7 @@ end
             FisherT[jto] = real(tr_τ^2)
 
             # We evaluate the QFI for a final strong measurement done at time t
-            QFisherT[jto] = QFI(state)
+            QFisherT[jto] = QFI!(state)
 
             jto += 1
             put!(progress_channel, true)

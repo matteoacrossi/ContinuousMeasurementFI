@@ -77,7 +77,7 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
                     FisherT[jto] = real(tr_τ^2)
 
                     # We evaluate the QFI for a final strong measurement done at time t
-                    @timeit_debug to "QFI" QFisherT[jto] = QFI(state)
+                    @timeit_debug to "QFI" QFisherT[jto] = QFI!(state)
 
                     jto += 1
                 end
