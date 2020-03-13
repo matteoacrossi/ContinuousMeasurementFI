@@ -75,7 +75,9 @@ function InitializeModel(modelparams::ModelParameters, liouvillianfile::Union{St
     dH = Jz
 
     # Kraus-like operator, trajectory-independent part
+    M0 = (I - 1im * H * dt -
           0.25 * dt * kind * Nj * I - # The Id comes from the squares of sigmaz_j
+          (kcoll/2) * Jy2 * dt)
 
     # Derivative of the Kraus-like operator wrt to ω
     dM = -1im * dH * dt
