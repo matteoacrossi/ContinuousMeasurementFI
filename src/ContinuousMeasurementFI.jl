@@ -27,7 +27,7 @@ module ContinuousMeasurementFI
     using LinearAlgebra
 
     export Molmer_QFI_GHZ, Molmer_qfi_transverse, uncond_QFI_transverse
-    export QFI, squeezing_param
+    export QFI, QFI!, squeezing_param
     export Unconditional_QFI, Unconditional_QFI_Dicke
     export Eff_QFI_HD
     export Eff_QFI_HD_Dicke, Eff_QFI_HD_Dicke_0
