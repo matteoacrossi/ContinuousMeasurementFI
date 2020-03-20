@@ -185,6 +185,48 @@ function fast_sup_post!(Sup::SparseMatrixCSC{T1, S1}, A::SparseMatrixCSC{T1,S1})
     return Sup
 end
 
+
+"""
+    bi, newi, newj = _block_ij(indices, N)
+
+Given the `indices` of the row or column of a superoperator of size `N`, transforms them to block indices
+for the action to a density matrix.
+"""
+function _block_ij(indices, N)
+    Nj = nspins(N)
+    bs = block_sizes(Nj)
+
+    # We add a leading 1 and a trailing element larger than the
+    # total size to avoid out-of-bounds problems
+    blockindices = vcat(cumsum(vcat(1, bs[1:end-1])), N+1)
+
+    # Tranform from superoperator index to matrix i,j indices
+    newi = (indices .- 1) .% N .+ 1
+    newj = (indices .- 1) .÷ N .+ 1
+
+    # Store the output block indices
+    bi = similar(newi)
+
+    for i in eachindex(newi)
+        # Find the index of the block corresponding to the i index
+        tmp = searchsortedfirst(blockindices, newi[i], lt=<=) - 1
+
+        # Check that the j index corresponds to the same block
+        if blockindices[tmp] <= newj[i] < blockindices[tmp + 1]
+            bi[i] = tmp
+            newi[i] -= blockindices[bi[i]] - 1
+            newj[i] -= blockindices[bi[i]] - 1
+        else # Otherwise, ignore it (I don't remember why)
+            bi[i] = 0
+            newi[i] = 0
+            newj[i] = 0
+        end
+    end
+
+    return bi, newi, newj
+end
+
+
 """
 Contains the block, row and column indices for efficient application of the superoperator
 """
@@ -198,60 +240,33 @@ struct Indices{T}
     jc::Array{T, 1}
 end
 
+"""
+Defines a SuperOperator in terms of it's action on a square density matrix, rather than a
+vectorized one.
+"""
 struct SuperOperator{Tv, Ti <: Integer}
     indices::Indices{Ti}
     values::Array{Tv}
 
     function SuperOperator{Tv, Ti}(A::SparseMatrixCSC{Tv, Ti}) where Tv where Ti <: Integer
         N = Int(sqrt(size(A, 1)))
-        Nj = nspins(N)
         row, col, val = findnz(A)
-        bs = block_sizes(Nj)
-        blockindices = cumsum(vcat(1, bs[1:end-1]))
+        br, ir, jr = _block_ij(row, N)
+        bc, ic, jc = _block_ij(col, N)
 
-        irow = (row .- 1) .% N .+ 1
-        jrow = (row .- 1) .÷ N .+ 1
-        ir = similar(irow)
-        jr = similar(jrow)
+        indices = Indices{Ti}(br, bc, ir, jr, ic, jc)
 
-        t1 = sum(Int.(floor.(reshape(irow, :, 1) ./ blockindices[2:end]')) .>= 1, dims=2) .+ 1
-        t2 = sum(Int.(floor.(reshape(jrow, :, 1) ./ blockindices[2:end]')) .>= 1, dims=2) .+ 1
-
-        br = t1 .* (t1 .== t2)
-
-        @simd for i = 1:length(irow)
-            if br[i] > 0
-                ir[i] = irow[i] - blockindices[br[i]] + 1
-                jr[i] = jrow[i] - blockindices[br[i]] + 1
-            end
-        end
-
-        icol = (col .- 1) .% N .+ 1
-        jcol = (col .- 1) .÷ N .+ 1
-
-        ic = similar(icol)
-        jc = similar(jcol)
-
-        t1 .= sum(Int.(floor.(reshape(icol, :, 1) ./ blockindices[2:end]')) .>= 1, dims=2) .+ 1
-        t2 .= sum(Int.(floor.(reshape(jcol, :, 1) ./ blockindices[2:end]')) .>= 1, dims=2) .+ 1
-
-        bc = t1 .* (t1 .== t2)
-
-        @simd for i = 1:length(icol)
-            if bc[i] > 0
-                ic[i] = icol[i] - blockindices[bc[i]] + 1
-                jc[i] = jcol[i] - blockindices[bc[i]] + 1
-            end
-        end
-
-        indices = Indices{Ti}(br[:], bc[:], ir, jr, ic, jc)
-        values = val
-        new(indices, values)
+        new(indices, val)
     end
 end
 
 SuperOperator(A::SparseMatrixCSC{Tv, Ti}) where Ti <: Integer where Tv = SuperOperator{Tv, Ti}(A)
 
+"""
+    apply_superop!(C, A, B)
+
+Apply the `SuperOperator` `A` to `BlockDiagonal` matrix `B` and stores the result in `C`
+"""
 function apply_superop!(C::BlockDiagonal, A::SuperOperator{Tv, Ti}, B::BlockDiagonal) where Ti <: Integer where Tv
     for b in blocks(C)
         fill!(b, zero(eltype(b)))
