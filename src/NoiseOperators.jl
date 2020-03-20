@@ -5,7 +5,7 @@ using SparseArrays
 using LinearAlgebra
 import SparseArrays.getcolptr
 using BlockDiagonals
-
+using ZChop
 
 """
     σ_j(j, n, direction)
@@ -269,10 +269,8 @@ function apply_superop!(C::BlockDiagonal, A::SuperOperator{Tv, Ti}, B::BlockDiag
     return C
 end
 
-
-import ZChop: zchop!
 # Specialize zchop! to BlockDiagonal
-function zchop!(A::BlockDiagonal)
+function ZChop.zchop!(A::BlockDiagonal)
    for b in blocks(A)
         zchop!(b)
     end
