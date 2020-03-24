@@ -5,7 +5,6 @@ using SparseArrays
 using LinearAlgebra
 import SparseArrays.getcolptr
 using BlockDiagonals
-using ZChop
 
 """
     σ_j(j, n, direction)
@@ -186,6 +185,67 @@ function fast_sup_post!(Sup::SparseMatrixCSC{T1, S1}, A::SparseMatrixCSC{T1,S1})
 end
 
 
+struct BlockIndices{T}
+    b::Array{T, 1}
+    i::Array{T, 1}
+    j::Array{T, 1}
+end
+
+
+"""
+Defines a superoperator in terms of its action on a square density matrix.
+
+A superoperator maps density matrices into density matrices.
+"""
+struct SuperOperator{Tv, Ti <: Integer}
+
+    rowind::BlockIndices{Ti}
+    colind::BlockIndices{Ti}
+    values::Array{Tv}
+
+    """
+        SuperOperator(A)
+
+    Construct the Superoperator acting on a N-dimensional Hilbert space from a 2N × 2N
+    sparse superoperator matrix.
+    """
+    function SuperOperator{Tv, Ti}(A::SparseMatrixCSC{Tv, Ti}) where Tv where Ti <: Integer
+        N = Int(sqrt(size(A, 1)))
+        row, col, val = findnz(A)
+        rowind = _block_ij(row, N)
+        colind = _block_ij(col, N)
+
+
+        new(rowind, colind, val)
+    end
+end
+
+SuperOperator(A::SparseMatrixCSC{Tv, Ti}) where Ti <: Integer where Tv = SuperOperator{Tv, Ti}(A)
+
+
+"""
+    apply_superop!(C, A, B)
+
+Apply the `SuperOperator` `A` to `BlockDiagonal` matrix `B` and stores the result in `C`
+"""
+function apply_superop!(C::BlockDiagonal, A::SuperOperator{Tv, Ti}, B::BlockDiagonal) where Ti <: Integer where Tv
+    for b in blocks(C)
+        fill!(b, zero(eltype(b)))
+    end
+    val::Array{Tv, 1} = A.values
+
+    @simd for i = 1 : length(val)
+        if A.colind.b[i] > 0
+            tmp = val[i] * B.blocks[A.colind.b[i]][A.colind.i[i], A.colind.j[i]]
+            if tmp != 0.0
+                C.blocks[A.rowind.b[i]][A.rowind.i[i], A.rowind.j[i]] += tmp
+            end
+        end
+    end
+    return C
+end
+
+
 """
     bi, newi, newj = _block_ij(indices, N)
 
@@ -223,73 +283,10 @@ function _block_ij(indices, N)
         end
     end
 
-    return bi, newi, newj
+    return BlockIndices{Int64}(bi, newi, newj)
 end
 
 
-"""
-Contains the block, row and column indices for efficient application of the superoperator
-"""
-# TODO: Format using 2 tuples
-struct Indices{T}
-    br::Array{T, 1}
-    bc::Array{T, 1}
-    ir::Array{T, 1}
-    jr::Array{T, 1}
-    ic::Array{T, 1}
-    jc::Array{T, 1}
-end
-
-"""
-Defines a SuperOperator in terms of it's action on a square density matrix, rather than a
-vectorized one.
-"""
-struct SuperOperator{Tv, Ti <: Integer}
-    indices::Indices{Ti}
-    values::Array{Tv}
-
-    function SuperOperator{Tv, Ti}(A::SparseMatrixCSC{Tv, Ti}) where Tv where Ti <: Integer
-        N = Int(sqrt(size(A, 1)))
-        row, col, val = findnz(A)
-        br, ir, jr = _block_ij(row, N)
-        bc, ic, jc = _block_ij(col, N)
-
-        indices = Indices{Ti}(br, bc, ir, jr, ic, jc)
-
-        new(indices, val)
-    end
-end
-
-SuperOperator(A::SparseMatrixCSC{Tv, Ti}) where Ti <: Integer where Tv = SuperOperator{Tv, Ti}(A)
-
-"""
-    apply_superop!(C, A, B)
-
-Apply the `SuperOperator` `A` to `BlockDiagonal` matrix `B` and stores the result in `C`
-"""
-function apply_superop!(C::BlockDiagonal, A::SuperOperator{Tv, Ti}, B::BlockDiagonal) where Ti <: Integer where Tv
-    for b in blocks(C)
-        fill!(b, zero(eltype(b)))
-    end
-    val::Array{Tv, 1} = A.values
-    indices = A.indices
-    @simd for i = 1 : length(val)
-        if A.indices.bc[i] > 0
-            tmp = val[i] * B.blocks[indices.bc[i]][indices.ic[i], indices.jc[i]]
-            if tmp != 0.0
-                C.blocks[indices.br[i]][indices.ir[i], indices.jr[i]] += tmp
-            end
-        end
-    end
-    return C
-end
-
-# Specialize zchop! to BlockDiagonal
-function ZChop.zchop!(A::BlockDiagonal)
-   for b in blocks(A)
-        zchop!(b)
-    end
-end
 
 """ nspins(size)
 
@@ -312,7 +309,7 @@ If dense=true, force the blocks to have a dense structure
 function blockdiagonal(M::T; dense=false) where T <: AbstractArray
     N = nspins(size(M, 1))
 
-    blocksizes = ContinuousMeasurementFI.block_sizes(N)
+    blocksizes = block_sizes(N)
 
     views = Array{T}(undef, length(blocksizes))
     startidx = 1
