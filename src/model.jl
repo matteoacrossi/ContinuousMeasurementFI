@@ -1,6 +1,8 @@
 using BlockDiagonals
 using SparseArrays
 using LinearAlgebra
+using TimerOutputs
+
 struct ModelParameters
     Nj::Integer
     kind::Real
@@ -47,8 +49,6 @@ struct Model
     Jx2::BlockDiagonal
     Jy2::BlockDiagonal
     Jz2::BlockDiagonal
-    H::BlockDiagonal
-    dH::BlockDiagonal
     second_term::SuperOperator
     M::KrausOperator
     dM::BlockDiagonal
@@ -63,14 +63,25 @@ function InitializeModel(modelparams::ModelParameters, liouvillianfile::Union{St
     η = modelparams.eta
 
     # Spin operators
-    (Jx, Jy, Jz) = map(blockdiagonal, jspin(Nj))
+    (Jx, Jy, Jz) = jspin(Nj)
 
-    indprepost = isnothing(liouvillianfile) ? initliouvillian(Nj) : initliouvillian(Nj, liouvillianfile)
+    let spJy, indprepost
+        spJy = sup_pre_post(sparse(Jy))
+        indprepost = isnothing(liouvillianfile) ? initliouvillian(Nj) : initliouvillian(Nj, liouvillianfile)
+
+        # TODO: Find better name
+        second_term = ((1 - η) * dt * kcoll * spJy +
+                dt * (kind / 2) * indprepost)
+        dropzeros!(second_term)
+    end
+
+    second_term = SuperOperator(second_term)
+
+    (Jx, Jy, Jz) = map(blockdiagonal, (Jx, Jy, Jz))
 
     Jx2 = Jx^2
     Jy2 = Jy^2
     Jz2 = Jz^2
-
     H = ω * Jz
     dH = Jz
 
@@ -84,14 +95,7 @@ function InitializeModel(modelparams::ModelParameters, liouvillianfile::Union{St
 
     M = KrausOperator(M0, similar(M0))
 
-    # TODO: Find better name
-    second_term = ((1 - η) * dt * kcoll * sup_pre_post(sparse(Jy)) +
-            dt * (kind / 2) * indprepost)
-    dropzeros!(second_term)
-
-    second_term = SuperOperator(second_term)
-
-    Model(modelparams, Jx, Jy, Jz, Jx2, Jy2, Jz2, H, dH, second_term, M, dM)
+    Model(modelparams, Jx, Jy, Jz, Jx2, Jy2, Jz2, second_term, M, dM)
 end
 
 function initliouvillian(Nj::Integer)
