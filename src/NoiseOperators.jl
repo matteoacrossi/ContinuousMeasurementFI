@@ -198,7 +198,7 @@ Defines a superoperator in terms of its action on a square density matrix.
 A superoperator maps density matrices into density matrices.
 """
 struct SuperOperator{Tv, Ti <: Integer}
-
+    size::Tuple{Int64, Int64}
     rowind::BlockIndices{Ti}
     colind::BlockIndices{Ti}
     values::Array{Tv}
@@ -215,8 +215,7 @@ struct SuperOperator{Tv, Ti <: Integer}
         rowind = _block_ij(row, N)
         colind = _block_ij(col, N)
 
-
-        new(rowind, colind, val)
+        new((N,N), rowind, colind, val)
     end
 end
 
