@@ -31,9 +31,10 @@ module ContinuousMeasurementFI
     export Unconditional_QFI, Unconditional_QFI_Dicke
     export Eff_QFI_HD
     export Eff_QFI_HD_Dicke, Eff_QFI_HD_Dicke_0
-
+    export simulate_trajectory
     export liouvillian, jspin, css
     export Model, ModelParameters, State, updatestate!, updatekraus!, measure_current, expectation_value!
+    export get_time
     export InitializeModel, coherentspinstate
     export write_to_file
     include("NoiseOperators.jl")
