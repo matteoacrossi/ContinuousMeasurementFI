@@ -37,6 +37,7 @@ module ContinuousMeasurementFI
     export get_time
     export InitializeModel, coherentspinstate
     export write_to_file
+
     include("NoiseOperators.jl")
     include("model.jl")
     include("States.jl")
@@ -49,6 +50,7 @@ module ContinuousMeasurementFI
     include("filewriter.jl")
 
     include("utils.jl")
+    include("show.jl") # Pretty formatting
 
     """
         (t, FI, QFI) = Eff_QFI_HD(Nj, Ntraj, Tfinal, dt; kwargs... )
