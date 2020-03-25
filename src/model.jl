@@ -10,6 +10,40 @@ struct ModelParameters
     omega::Real
     eta::Real
     dt::Real
+    Tfinal::Real
+    Ntime::Integer
+    outpoints::Integer
+    _outsteps::Integer
+
+    function ModelParameters(; Nj::Integer=1,
+                               kind::Real=1.0,
+                               kcoll::Real=1.0,
+                               omega::Real=1.0,
+                               eta::Real=1.0,
+                               dt::Real=0.0001,
+                               Tfinal::Real=1.0,
+                               outpoints::Integer=0)
+
+        Ntime = Int(floor(Tfinal/dt)) # Number of timesteps
+
+        outsteps = 1
+        if outpoints > 0
+            try
+                outsteps = Int(round(Tfinal / dt / outpoints, digits=3))
+            catch InexactError
+                @warn "The requested $outpoints output points does not divide
+                the total time steps. Using the full time output."
+            end
+        end
+        outpoints = Ntime
+
+        new(Nj, kind, kcoll, omega, eta, dt, Tfinal, Ntime, outpoints, outsteps)
+    end
+end
+
+function get_time(mp::ModelParameters)
+    t = (1 : mp.Ntime) * mp.dt
+    t[mp._outsteps:mp._outsteps:end]
 end
 
 struct State
@@ -97,6 +131,9 @@ function InitializeModel(modelparams::ModelParameters, liouvillianfile::Union{St
 
     Model(modelparams, Jx, Jy, Jz, Jx2, Jy2, Jz2, second_term, M, dM)
 end
+
+get_time(m::Model) = get_time(m.params)
+
 
 function initliouvillian(Nj::Integer)
     sys = piqs.Dicke(Nj)
