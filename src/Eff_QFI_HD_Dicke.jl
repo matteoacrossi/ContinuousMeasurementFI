@@ -3,6 +3,71 @@ using Distributed
 using TimerOutputs
 using ProgressMeter
 
+function simulate_trajectory(model::Model,
+                             initial_state::State,
+                             file_channel::Union{Channel,RemoteChannel,Nothing}=nothing,
+                             progress_channel::Union{Channel,RemoteChannel,Nothing}=nothing)
+
+    state = State(copy(initial_state.ρ))
+
+    jx = Array{Float64}(undef, length(get_time(model)))
+    # Output variables
+    jx = similar(jx)
+    jy = similar(jx)
+    jz = similar(jx)
+
+    jx2 = similar(jx)
+    jy2 = similar(jx)
+    jz2 = similar(jx)
+
+    FisherT = similar(jx)
+    QFisherT = similar(jx)
+
+    jto = 1 # Counter for the output
+
+    for jt = 1 : model.params.Ntime
+        dy = measure_current(state, model)
+        updatekraus!(model, dy)
+        tr_ρ, tr_τ = updatestate!(state, model)
+
+        if jt % model.params._outsteps == 0
+
+            jx[jto] = expectation_value!(state, model.Jx)
+            jy[jto] = expectation_value!(state, model.Jy)
+            jz[jto] = expectation_value!(state, model.Jz)
+
+            jx2[jto] = expectation_value!(state, model.Jx2)
+            jy2[jto] = expectation_value!(state, model.Jy2)
+            jz2[jto] = expectation_value!(state, model.Jz2)
+
+            # We evaluate the classical FI for the continuous measurement
+            FisherT[jto] = real(tr_τ^2)
+
+            # We evaluate the QFI for a final strong measurement done at time t
+            QFisherT[jto] = QFI!(state)
+
+            jto += 1
+            isnothing(progress_channel) || put!(progress_channel, true)
+        end
+    end
+
+    Δjx2 = jx2 - jx.^2
+    Δjy2 = jy2 - jy.^2
+    Δjz2 = jz2 - jz.^2
+
+    xi2x = squeezing_param(model.params.Nj, Δjx2, jy, jz)
+    xi2y = squeezing_param(model.params.Nj, Δjy2, jx, jz)
+    xi2z = squeezing_param(model.params.Nj, Δjz2, jx, jy)
+
+    result = (FI=FisherT, QFI=QFisherT,
+                    Jx=jx, Jy=jy, Jz=jz,
+                    Δjx=Δjx2, Δjy=Δjy2, Δjz=Δjz2,
+                    xi2x=xi2x, xi2y=xi2y, xi2z=xi2z)
+    isnothing(file_channel) || put!(file_channel, result)
+    return result
+end
+
+
 function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
     Ntraj::Int64,                    # Number of trajectories
     Tfinal::Real,                    # Final time
