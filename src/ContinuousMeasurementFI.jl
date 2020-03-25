@@ -35,7 +35,7 @@ module ContinuousMeasurementFI
     export liouvillian, jspin, css
     export Model, ModelParameters, State, updatestate!, updatekraus!, measure_current, expectation_value!
     export InitializeModel, coherentspinstate
-
+    export write_to_file
     include("NoiseOperators.jl")
     include("model.jl")
     include("States.jl")
@@ -45,6 +45,7 @@ module ContinuousMeasurementFI
 
     include("Eff_QFI_HD_Dicke.jl")
     include("Eff_QFI_HD.jl")
+    include("filewriter.jl")
 
     include("utils.jl")
 
