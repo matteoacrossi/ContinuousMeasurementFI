@@ -1,5 +1,6 @@
 using Distributed
 
+
 @everywhere begin
     using Pkg
     Pkg.activate(".")
@@ -72,156 +73,73 @@ pkgs = Pkg.installed();
 
 @info "Output filename: $filename"
 
-outsteps = 1
-Tfinal = args["Tfinal"]
-dt = args["dt"]
-outpoints = args["outpoints"]
 Ntraj = args["Ntraj"]
-
-if outpoints > 0
-    try
-        outsteps = Int(round(Tfinal / dt / outpoints, digits=3))
-    catch InexactError
-        @warn "The requested $outpoints output points does not divide
-        the total time steps. Using the full time output."
-    end
-end
-outsteps = Int(round(Tfinal / dt / outpoints, digits=3))
-
-@info outsteps
-@info "Output every $outsteps steps"
 
 @everywhere to = TimerOutput()
 
-modelparams = ModelParameters(args["Nj"], args["kind"], args["kcoll"], args["omega"], args["eta"], args["dt"])
+modelparams = ModelParameters(Nj=args["Nj"],
+                              kind=args["kind"],
+                              kcoll=args["kcoll"],
+                              omega=args["omega"],
+                              eta=args["eta"],
+                              dt=args["dt"],
+                              Tfinal=args["Tfinal"],
+                              outpoints=args["outpoints"])
 
-Ntime = Int(floor(Tfinal/dt)) # Number of timesteps
-t = (1 : Ntime) * dt
-t = t[outsteps:outsteps:end]
+@info "Output every $(modelparams._outsteps) steps"
 
 @info "Initializing model..."
+
 init_time = @elapsed begin
-@everywhere model = InitializeModel($modelparams, args["liouvillianfile"])
+@everywhere model = InitializeModel($modelparams, $args["liouvillianfile"])
 @everywhere initial_state = coherentspinstate($modelparams.Nj)
 end
+
 @info "Done in $init_time seconds..."
 
-function write_to_file(file_channel, timevec, Ntraj)
-    fid = h5open("$filename.h5", "w")
-    fid["t"] = collect(timevec)
-    outpoints = length(timevec)
-
-    datasets = Dict()
-    #for quantity in ("FI", "QFI", "Jx", "Jy", "Jz", "Δjx", "Δjy", "Δjz", "xi2x", "xi2y", "xi2z")
-    for quantity in ("FI", "QFI", "xi2y")
-        ds = d_create(fid, quantity, Float64, ((outpoints, Ntraj), (outpoints, -1)), "chunk", (outpoints, 1))
-        datasets[quantity] = ds
-    end
-    #p = Progress(Ntraj, 1)
-    counter = 1
-    @info "Writer ready!"
-    while true
-        try
-            traj_result = take!(file_channel)
-            for (d, data) in pairs(traj_result)
-                if string(d) in keys(datasets)
-                    try
-                        datasets[string(d)][:, counter] = data
-                    catch er
-                        @error er
-                    end
-                end
-            end
-            #next!(p)
-            counter += 1
-        catch InvalidStateException
-            @info "Channel closed"
-            return fid
-        end
-    end
-    return fid
-end
 
 # Starts the writer function on the main process
 
 file_channel = RemoteChannel(() -> Channel{NamedTuple}(200))
-writer = @spawnat 1 write_to_file(file_channel, t, args["Ntraj"])
+writer = @async write_to_file(file_channel, get_time(model), args["Ntraj"])
 
 progress_channel = RemoteChannel(() -> Channel{Bool}(200))
 
-p = Progress(Ntraj * length(t))
+p = Progress(Ntraj * length(get_time(model)))
 @async while take!(progress_channel)
     next!(p)
 end
 
-@info "Starting trajectories simulation..."
-@sync @distributed for ktraj = 1 : Ntraj
-    state = State(copy(initial_state.ρ))
+numthreads = parse(Int, ENV["JULIA_NUM_THREADS"])
 
-    # Output variables
-    jx = similar(t)
-    jy = similar(t)
-    jz = similar(t)
-
-    jx2 = similar(t)
-    jy2 = similar(t)
-    jz2 = similar(t)
-
-    FisherT = similar(t)
-    QFisherT = similar(t)
-
-    jto = 1 # Counter for the output
-    for jt = 1 : Ntime
-        dy = measure_current(state, model)
-        updatekraus!(model, dy)
-        tr_ρ, tr_τ = updatestate!(state, model)
-
-        if jt % outsteps == 0
-
-            jx[jto] = expectation_value!(state, model.Jx)
-            jy[jto] = expectation_value!(state, model.Jy)
-            jz[jto] = expectation_value!(state, model.Jz)
-
-            jx2[jto] = expectation_value!(state, model.Jx2)
-            jy2[jto] = expectation_value!(state, model.Jy2)
-            jz2[jto] = expectation_value!(state, model.Jz2)
-
-            # We evaluate the classical FI for the continuous measurement
-            FisherT[jto] = real(tr_τ^2)
-
-            # We evaluate the QFI for a final strong measurement done at time t
-            QFisherT[jto] = QFI!(state)
-
-            jto += 1
-            put!(progress_channel, true)
-        end
-    end
-
-    Δjx2 = jx2 - jx.^2
-    Δjy2 = jy2 - jy.^2
-    Δjz2 = jz2 - jz.^2
-
-    xi2x = squeezing_param(model.params.Nj, Δjx2, jy, jz)
-    xi2y = squeezing_param(model.params.Nj, Δjy2, jx, jz)
-    xi2z = squeezing_param(model.params.Nj, Δjz2, jx, jy)
-
-    if !isnothing(file_channel)
-        result = (FI=FisherT, QFI=QFisherT,
-                    Jx=jx, Jy=jy, Jz=jz,
-                    Δjx=Δjx2, Δjy=Δjy2, Δjz=Δjz2,
-                    xi2x=xi2x, xi2y=xi2y, xi2z=xi2z)
-        put!(file_channel, result)
-    else
-        @info "No file channel!"
+@everywhere function thread_simulate_trajectory(model, initial_state, file_channel, progress_channel, ntraj)
+    pid = Distributed.myid()
+    nth = Threads.nthreads()
+    Threads.@threads for i in 1:ntraj
+        tid = Threads.threadid()
+        println("Hello from thread $tid of $nth on worker $pid.")
+        simulate_trajectory(model, initial_state, file_channel, progress_channel)
     end
 end
+
+trajectory_time = @elapsed begin
+    pmap(x -> thread_simulate_trajectory(model, initial_state, file_channel, progress_channel, numthreads), 1:numthreads:Ntraj)
+end
+
+@info "Trajectory simulation time: $trajectory_time"
+
 put!(progress_channel, false)
+
 for i in eachindex(workers())
     fetch(@spawnat i begin
-        result = read(`grep VmHWM /proc/$(getpid())/status`, String)
-        peakmem = tryparse(Int, String(match(r"(\d+)", result)[1]))
+        try
+            result = read(`grep VmHWM /proc/$(getpid())/status`, String)
+            peakmem = tryparse(Int, String(match(r"(\d+)", result)[1]))
 
-        @info "Peak memory in GB:" peakmem / 1024^3
+            @info "Peak memory in GB:" peakmem / 1024^3
+        catch er
+            @info er
+        end
     end)
 end
 
