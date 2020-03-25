@@ -61,7 +61,7 @@ function simulate_trajectory(model::Model,
 
     result = (FI=FisherT, QFI=QFisherT,
                     Jx=jx, Jy=jy, Jz=jz,
-                    Δjx=Δjx2, Δjy=Δjy2, Δjz=Δjz2,
+                    Δjx2=Δjx2, Δjy2=Δjy2, Δjz2=Δjz2,
                     xi2x=xi2x, xi2y=xi2y, xi2z=xi2z)
     isnothing(file_channel) || put!(file_channel, result)
     return result
@@ -82,92 +82,21 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
     @info "Eff_QFI_HD_Dicke starting"
     @info "Parameters" Nj Ntraj Tfinal dt κ κcoll ω η outpoints
 
-    outsteps = 1
-
-    if outpoints > 0
-        try
-            outsteps = Int(round(Tfinal / dt / outpoints, digits=3))
-        catch InexactError
-            @warn "The requested $outpoints output points does not divide
-            the total time steps. Using the full time output."
-        end
-    end
-
-    @info "Output every $outsteps steps"
-
-    Ntime = Int(floor(Tfinal/dt)) # Number of timesteps
-
-    modelparams = ModelParameters(Nj, κ, κcoll, ω, η, dt)
+    modelparams = ModelParameters(Nj=Nj, kind=κ, kcoll=κcoll, omega=ω, eta=η, dt=dt, Tfinal=Tfinal, outpoints=outpoints)
 
     model = InitializeModel(modelparams)
     initial_state = coherentspinstate(Nj)
-
-    t = (1 : Ntime) * dt
-    t = t[outsteps:outsteps:end]
 
     # Run evolution for each trajectory, and build up the average
     # for FI and final strong measurement QFI
     @timeit_debug to "trajectories" begin
     #result = @showprogress 1 "Computing..." @distributed (+) for ktraj = 1 : Ntraj
     result = @distributed (+) for ktraj = 1 : Ntraj
-        state = State(copy(initial_state.ρ))
-        # Output variables
-        jx = similar(t)
-        jy = similar(t)
-        jz = similar(t)
-
-        jx2 = similar(t)
-        jy2 = similar(t)
-        jz2 = similar(t)
-
-        FisherT = similar(t)
-        QFisherT = similar(t)
-
-        jto = 1 # Counter for the output
-        for jt = 1 : Ntime
-            @timeit_debug to "current" dy = measure_current(state, model)
-            @timeit_debug to "kraus" updatekraus!(model, dy)
-            @timeit_debug to "state update" tr_ρ, tr_τ = updatestate!(state, model)
-            if jt % outsteps == 0
-                @timeit_debug to "Output" begin
-                    jx[jto] = expectation_value!(state, model.Jx)
-                    jy[jto] = expectation_value!(state, model.Jy)
-                    jz[jto] = expectation_value!(state, model.Jz)
-
-                    jx2[jto] = expectation_value!(state, model.Jx2)
-                    jy2[jto] = expectation_value!(state, model.Jy2)
-                    jz2[jto] = expectation_value!(state, model.Jz2)
-
-                    # We evaluate the classical FI for the continuous measurement
-                    FisherT[jto] = real(tr_τ^2)
-
-                    # We evaluate the QFI for a final strong measurement done at time t
-                    @timeit_debug to "QFI" QFisherT[jto] = QFI!(state)
-
-                    jto += 1
-                end
-            end
-
-        end
-
-        Δjx2 = jx2 - jx.^2
-        Δjy2 = jy2 - jy.^2
-        Δjz2 = jz2 - jz.^2
-
-        xi2x = squeezing_param(Nj, Δjx2, jy, jz)
-        xi2y = squeezing_param(Nj, Δjy2, jx, jz)
-        xi2z = squeezing_param(Nj, Δjz2, jx, jy)
-
-        if !isnothing(file_channel)
-            result = (FI=FisherT, QFI=QFisherT,
-                      Jx=jx, Jy=jy, Jz=jz,
-                      Δjx=Δjx2, Δjy=Δjy2, Δjz=Δjz2,
-                      xi2x=xi2x, xi2y=xi2y, xi2z=xi2z)
-            put!(file_channel, result)
-        end
-        # Use the reduction feature of @distributed for
-        # (at the end of each cicle, sum the result to result)
-        hcat(FisherT, QFisherT, jx, jy, jz, Δjx2, Δjy2, Δjz2, xi2x, xi2y, xi2z)
+        result = simulate_trajectory(model, initial_state)
+        hcat(result.FI, result.QFI,
+             result.Jx, result.Jy, result.Jz,
+             result.Δjx2, result.Δjy2, result.Δjz2,
+             result.xi2x, result.xi2y, result.xi2z)
     end
     end
 
@@ -185,7 +114,7 @@ function Eff_QFI_HD_Dicke(Nj::Int64, # Number of spins
     xi2z = result[:, 11] / Ntraj
 
     @info "Time details \n$to"
-    return (t=t,
+    return (t=get_time(model),
             FI=result[:,1] / Ntraj,
             QFI=result[:,2] / Ntraj,
             jx=jx, jy=jy, jz=jz,
