@@ -4,7 +4,7 @@ Functions for constructing noise operators
 using SparseArrays
 using LinearAlgebra
 import SparseArrays.getcolptr
-using BlockDiagonals
+using BlockDiagonalMatrices
 
 """
     σ_j(j, n, direction)

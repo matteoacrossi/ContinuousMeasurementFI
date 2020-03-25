@@ -4,7 +4,7 @@ authors = ["Matteo Rossi <teo.red90@gmail.com>"]
 version = "0.4.0"
 
 [deps]
-BlockDiagonals = "0a1fb500-61f7-11e9-3c65-f5ef3456f9f0"
+BlockDiagonalMatrices = "0a1fb501-61f7-11e9-3c65-f5ef3456f9f0"
 Distributed = "8ba89e20-285c-5b6f-9357-94700520ee1b"
 HDF5 = "f67ccb44-e63f-5c2f-98bd-6dc0ccc4ba2f"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"

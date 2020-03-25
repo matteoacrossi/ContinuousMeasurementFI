@@ -1,4 +1,4 @@
-using BlockDiagonals
+using BlockDiagonalMatrices
 using SparseArrays
 using LinearAlgebra
 using TimerOutputs
