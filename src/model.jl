@@ -63,13 +63,6 @@ function coherentspinstate(Nj, dense=true)
     State(ρ0)
 end
 
-struct SimulationParameters
-    Ntraj::Integer
-    Tfinal::Real
-    dt::Real
-    outpoints::Integer
-end
-
 struct KrausOperator
     M0::BlockDiagonal
     M::BlockDiagonal
@@ -99,16 +92,14 @@ function InitializeModel(modelparams::ModelParameters, liouvillianfile::Union{St
     # Spin operators
     (Jx, Jy, Jz) = jspin(Nj)
 
-    let spJy, indprepost
-        spJy = sup_pre_post(sparse(Jy))
-        indprepost = isnothing(liouvillianfile) ? initliouvillian(Nj) : initliouvillian(Nj, liouvillianfile)
+    # TOODO: Find better name
+    second_term = (1 - η) * dt * kcoll * sup_pre_post(sparse(Jy))
 
-        # TODO: Find better name
-        second_term = ((1 - η) * dt * kcoll * spJy +
-                dt * (kind / 2) * indprepost)
-        dropzeros!(second_term)
+    let indprepost = isnothing(liouvillianfile) ? initliouvillian(Nj) : initliouvillian(Nj, liouvillianfile)
+        second_term += dt * (kind / 2) * indprepost
     end
 
+    dropzeros!(second_term)
     second_term = SuperOperator(second_term)
 
     (Jx, Jy, Jz) = map(blockdiagonal, (Jx, Jy, Jz))
@@ -134,7 +125,6 @@ end
 
 get_time(m::Model) = get_time(m.params)
 
-
 function initliouvillian(Nj::Integer)
     sys = piqs.Dicke(Nj)
     sys.dephasing = 4.
@@ -149,10 +139,11 @@ function initliouvillian(Nj::Integer, filename::String)
 end
 
 function measure_current(state::State, model::Model)
-    dW() = sqrt(model.params.dt) * randn() # Define the Wiener increment
+    dW = sqrt(model.params.dt) * randn() # Define the Wiener increment
     # Homodyne current (Eq. 35)
+    # dy = 2 sqrt(kcoll * eta) * tr(ρ * Jy) * dt + dW
     mul!(state._tmp1, model.Jy, state.ρ)
-    return 2 * sqrt(model.params.kcoll * model.params.eta) * real(tr(state._tmp1)) * model.params.dt + dW()
+    return 2 * sqrt(model.params.kcoll * model.params.eta) * real(tr(state._tmp1)) * model.params.dt + dW
 end
 
 function updatekraus!(model::Model, dy::Real)
