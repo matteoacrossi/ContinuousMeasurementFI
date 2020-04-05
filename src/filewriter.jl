@@ -1,7 +1,6 @@
 using HDF5
 
-function write_to_file(file_channel, timevec, Ntraj)
-    fid = h5open("$filename.h5", "w")
+function write_to_file(fid::HDF5File, timevec, Ntraj)
     fid["t"] = collect(timevec)
     outpoints = length(timevec)
 
