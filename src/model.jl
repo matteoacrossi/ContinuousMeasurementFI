@@ -139,11 +139,11 @@ function initliouvillian(Nj::Integer, filename::String)
 end
 
 function measure_current(state::State, model::Model)
-    dW = sqrt(model.params.dt) * randn() # Define the Wiener increment
+    @inline dW() = sqrt(model.params.dt) * randn() # Define the Wiener increment
     # Homodyne current (Eq. 35)
     # dy = 2 sqrt(kcoll * eta) * tr(ρ * Jy) * dt + dW
     mul!(state._tmp1, model.Jy, state.ρ)
-    return 2 * sqrt(model.params.kcoll * model.params.eta) * real(tr(state._tmp1)) * model.params.dt + dW
+    return 2 * sqrt(model.params.kcoll * model.params.eta) * real(tr(state._tmp1)) * model.params.dt + dW()
 end
 
 function updatekraus!(model::Model, dy::Real)
