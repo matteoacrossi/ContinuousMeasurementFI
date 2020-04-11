@@ -79,7 +79,7 @@ struct Model
     Jy2::BlockDiagonal
     Jz2::BlockDiagonal
     second_term::SuperOperator
-    M::KrausOperator
+    M0::BlockDiagonal
     dM::BlockDiagonal
 end
 
@@ -120,9 +120,7 @@ function InitializeModel(modelparams::ModelParameters, liouvillianfile::Union{St
     # Derivative of the Kraus-like operator wrt to ω
     dM = -1im * dH * dt
 
-    M = KrausOperator(M0, similar(M0))
-
-    Model(modelparams, Jx, Jy, Jz, Jx2, Jy2, Jz2, second_term, M, dM)
+    Model(modelparams, Jx, Jy, Jz, Jx2, Jy2, Jz2, second_term, M0, dM)
 end
 
 get_time(m::Model) = get_time(m.params)
@@ -148,20 +146,23 @@ function measure_current(state::State, model::Model)
     return 2 * sqrt(model.params.kcoll * model.params.eta) * real(tr(state._tmp1)) * model.params.dt + dW()
 end
 
-function updatekraus!(model::Model, dy::Real)
+function get_kraus(model::Model, dy::Real)
     p = model.params
+    kraus = similar(model.M0)
     # Kraus operator Eq. (36)
-    @inbounds for i in eachindex(model.M.M.blocks)
-        model.M.M.blocks[i] = model.M.M0.blocks[i] + sqrt(p.eta * p.kcoll) * model.Jy.blocks[i] * dy +
+    @inbounds for i in eachindex(kraus.blocks)
+        kraus.blocks[i] = model.M0.blocks[i] + sqrt(p.eta * p.kcoll) * model.Jy.blocks[i] * dy +
         p.eta * (p.kcoll / 2) * model.Jy2.blocks[i] * (dy^2 - p.dt)
     end
+    return kraus
 end
 
-function updatestate!(state::State, model::Model)
+function updatestate!(state::State, model::Model, dy::Real)
     # Non-allocating code for
+    M = get_kraus(model, dy)
     # new_ρ = Mpre * Mpost * ρ + second_term * ρ
-    mul!(state._tmp1, state.ρ, model.M.M')
-    mul!(state._new_ρ, model.M.M, state._tmp1)
+    mul!(state._tmp1, state.ρ, M')
+    mul!(state._new_ρ, M, state._tmp1)
     apply_superop!(state._tmp1, model.second_term, state.ρ)
 
     # TODO: Replace with broadcasting once implemented
@@ -177,10 +178,10 @@ function updatestate!(state::State, model::Model)
     # τ = (Mpre * (Mpost * τ  +  dMpost * ρ) + dMpre * Mpost * ρ +
     #      second_term * τ )/ tr_ρ;
     mul!(state._tmp1, state.ρ, model.dM')
-    mul!(state._tmp1, state.τ, model.M.M', 1., 1.)
+    mul!(state._tmp1, state.τ, M', 1., 1.)
     apply_superop!(state._tmp2, model.second_term, state.τ)
-    mul!(state._tmp2, model.M.M, state._tmp1, 1., 1.)
-    mul!(state._tmp1, state.ρ, model.M.M')
+    mul!(state._tmp2, M, state._tmp1, 1., 1.)
+    mul!(state._tmp1, state.ρ, M')
     mul!(state._tmp2, model.dM, state._tmp1, 1., 1.)
 
     # TODO: Use broadcasting when it is implemented

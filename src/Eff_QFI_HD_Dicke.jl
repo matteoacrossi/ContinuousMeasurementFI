@@ -27,8 +27,7 @@ function simulate_trajectory(model::Model,
 
     for jt = 1 : model.params.Ntime
         dy = measure_current(state, model)
-        updatekraus!(model, dy)
-        tr_ρ, tr_τ = updatestate!(state, model)
+        tr_ρ, tr_τ = updatestate!(state, model, dy)
 
         if jt % model.params._outsteps == 0
 
