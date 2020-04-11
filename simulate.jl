@@ -97,6 +97,9 @@ end
 
 @info "Done in $init_time seconds..."
 
+@show model
+@show initial_state
+
 
 # Starts the writer function on the main process
 
