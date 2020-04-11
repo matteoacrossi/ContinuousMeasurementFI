@@ -5,7 +5,7 @@ Base.show(io::IO, model::Model) = begin
     m = Base.format_bytes(Base.summarysize(model))
     println(io, "Continuous monitoring model with $(model.params.Nj)-spin Dicke state\n")
 
-    println(io, "Operator type: $(typeof(model.M.M))")
+    println(io, "Operator type: $(typeof(model.M0))")
     sup_size = model.second_term.size
     nvals = length(model.second_term.values)
     density = nvals / (*(sup_size...))^2
