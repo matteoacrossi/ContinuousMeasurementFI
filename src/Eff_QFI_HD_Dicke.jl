@@ -8,7 +8,7 @@ function simulate_trajectory(model::Model,
                              file_channel::Union{Channel,RemoteChannel,Nothing}=nothing,
                              progress_channel::Union{Channel,RemoteChannel,Nothing}=nothing)
 
-    state = State(copy(initial_state.ρ))
+    state = State(initial_state) # Copy the initial state
 
     jx = Array{Float64}(undef, length(get_time(model)))
     # Output variables

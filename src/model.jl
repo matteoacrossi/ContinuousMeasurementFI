@@ -55,8 +55,10 @@ struct State
     _tmp2::BlockDiagonal
     _new_ρ::BlockDiagonal
 
-    State(ρ) = new(ρ, zero(ρ), zero(ρ), similar(ρ), similar(ρ), similar(ρ))
+    State(ρ::BlockDiagonal) = new(ρ, zero(ρ), zero(ρ), similar(ρ), similar(ρ), similar(ρ))
 end
+# Copy constructor
+State(state::State) = State(copy(state.ρ))
 
 function coherentspinstate(Nj, dense=true)
     ρ0 = blockdiagonal(css(Nj), dense=dense)
