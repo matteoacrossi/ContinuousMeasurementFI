@@ -158,47 +158,54 @@ function get_kraus(model::Model, dy::Real)
 end
 
 function updatestate!(state::State, model::Model, dy::Real)
+    # Get Kraus operator for measured current dy
+    @timeit_debug "get_kraus" M = get_kraus(model, dy)
+
     # Non-allocating code for
-    M = get_kraus(model, dy)
     # new_ρ = Mpre * Mpost * ρ + second_term * ρ
-    mul!(state._tmp1, state.ρ, M')
-    mul!(state._new_ρ, M, state._tmp1)
-    apply_superop!(state._tmp1, model.second_term, state.ρ)
 
-    # TODO: Replace with broadcasting once implemented
-    for (i, b) in enumerate(blocks(state._new_ρ))
-        b .+= state._tmp1.blocks[i]
+    @timeit_debug "rho" begin
+        mul!(state._tmp1, state.ρ, M')
+        mul!(state._new_ρ, M, state._tmp1)
+        @timeit_debug "superop" apply_superop!(state._tmp1, model.second_term, state.ρ)
+
+        # TODO: Replace with broadcasting once implemented
+        for (i, b) in enumerate(blocks(state._new_ρ))
+            b .+= state._tmp1.blocks[i]
+        end
+
+        zchop!(state._new_ρ) # Round off elements smaller than 1e-14
+        tr_ρ = tr(state._new_ρ)
+        # Evolve the unnormalized derivative wrt ω
     end
-
-    zchop!(state._new_ρ) # Round off elements smaller than 1e-14
-    tr_ρ = tr(state._new_ρ)
-    # Evolve the unnormalized derivative wrt ω
-
     # Non-allocating code for
     # τ = (Mpre * (Mpost * τ  +  dMpost * ρ) + dMpre * Mpost * ρ +
     #      second_term * τ )/ tr_ρ;
-    mul!(state._tmp1, state.ρ, model.dM')
-    mul!(state._tmp1, state.τ, M', 1., 1.)
-    apply_superop!(state._tmp2, model.second_term, state.τ)
-    mul!(state._tmp2, M, state._tmp1, 1., 1.)
-    mul!(state._tmp1, state.ρ, M')
-    mul!(state._tmp2, model.dM, state._tmp1, 1., 1.)
+    @timeit_debug "tau" begin
+        mul!(state._tmp1, state.ρ, model.dM')
+        mul!(state._tmp1, state.τ, M', 1., 1.)
+        @timeit_debug "superop" apply_superop!(state._tmp2, model.second_term, state.τ)
+        mul!(state._tmp2, M, state._tmp1, 1., 1.)
+        mul!(state._tmp1, state.ρ, M')
+        mul!(state._tmp2, model.dM, state._tmp1, 1., 1.)
 
-    # TODO: Use broadcasting when it is implemented
-    for i in eachindex(state.τ.blocks)
-        state.τ.blocks[i] .= state._tmp2.blocks[i] ./ tr_ρ
+        # TODO: Use broadcasting when it is implemented
+        for i in eachindex(state.τ.blocks)
+            state.τ.blocks[i] .= state._tmp2.blocks[i] ./ tr_ρ
+        end
     end
-
     zchop!(state.τ) # Round off elements smaller than 1e-14
 
     tr_τ = tr(state.τ)
     # Now we can renormalize ρ and its derivative wrt ω
     # TODO: Use broadcasting when it is implemented
-    for i = eachindex(state.ρ.blocks)
-        state.ρ.blocks[i] .= state._new_ρ.blocks[i] ./ tr_ρ
-    end
-    for i = eachindex(state.dρ.blocks)
-        state.dρ.blocks[i] .= state.τ.blocks[i] .- tr_τ .* state.ρ.blocks[i]
+    @timeit_debug "norms" begin
+        for i = eachindex(state.ρ.blocks)
+            state.ρ.blocks[i] .= state._new_ρ.blocks[i] ./ tr_ρ
+        end
+        for i = eachindex(state.dρ.blocks)
+            state.dρ.blocks[i] .= state.τ.blocks[i] .- tr_τ .* state.ρ.blocks[i]
+        end
     end
     return tr_ρ, tr_τ
 end
