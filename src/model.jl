@@ -170,8 +170,8 @@ function updatestate!(state::State, model::Model, dy::Real)
         @timeit_debug "superop" apply_superop!(state._tmp1, model.second_term, state.ρ)
 
         # TODO: Replace with broadcasting once implemented
-        for (i, b) in enumerate(blocks(state._new_ρ))
-            b .+= state._tmp1.blocks[i]
+        @inbounds for i in eachindex(state._new_ρ.bloks)
+            state._new_ρ.bloks[i] .+= state._tmp1.blocks[i]
         end
 
         zchop!(state._new_ρ) # Round off elements smaller than 1e-14
@@ -190,7 +190,7 @@ function updatestate!(state::State, model::Model, dy::Real)
         mul!(state._tmp2, model.dM, state._tmp1, 1., 1.)
 
         # TODO: Use broadcasting when it is implemented
-        for i in eachindex(state.τ.blocks)
+        @inbounds for i in eachindex(state.τ.blocks)
             state.τ.blocks[i] .= state._tmp2.blocks[i] ./ tr_ρ
         end
     end
@@ -200,10 +200,10 @@ function updatestate!(state::State, model::Model, dy::Real)
     # Now we can renormalize ρ and its derivative wrt ω
     # TODO: Use broadcasting when it is implemented
     @timeit_debug "norms" begin
-        for i = eachindex(state.ρ.blocks)
+        @inbounds for i = eachindex(state.ρ.blocks)
             state.ρ.blocks[i] .= state._new_ρ.blocks[i] ./ tr_ρ
         end
-        for i = eachindex(state.dρ.blocks)
+        @inbounds for i = eachindex(state.dρ.blocks)
             state.dρ.blocks[i] .= state.τ.blocks[i] .- tr_τ .* state.ρ.blocks[i]
         end
     end

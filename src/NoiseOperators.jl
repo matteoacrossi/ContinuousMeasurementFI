@@ -233,7 +233,7 @@ function apply_superop!(C::BlockDiagonal, A::SuperOperator{Tv, Ti}, B::BlockDiag
     end
     val::Array{Tv, 1} = A.values
 
-    @simd for i = 1 : length(val)
+    @inbounds @simd for i = 1 : length(val)
         if A.colind.b[i] > 0
             tmp = val[i] * B.blocks[A.colind.b[i]][A.colind.i[i], A.colind.j[i]]
             if tmp != 0.0
@@ -266,7 +266,7 @@ function _block_ij(indices, N)
     # Store the output block indices
     bi = similar(newi)
 
-    for i in eachindex(newi)
+    @inbounds for i in eachindex(newi)
         # Find the index of the block corresponding to the i index
         tmp = searchsortedfirst(blockindices, newi[i], lt=<=) - 1
 
