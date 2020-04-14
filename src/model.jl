@@ -28,6 +28,7 @@ struct ModelParameters
 
         outsteps = 1
         if outpoints > 0
+
             try
                 outsteps = Int(round(Tfinal / dt / outpoints, digits=3))
             catch InexactError
@@ -35,7 +36,7 @@ struct ModelParameters
                 the total time steps. Using the full time output."
             end
         end
-        outpoints = Ntime
+        #outpoints = Ntime
 
         new(Nj, kind, kcoll, omega, eta, dt, Tfinal, Ntime, outpoints, outsteps)
     end
