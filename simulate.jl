@@ -1,5 +1,14 @@
 using Distributed
+using ClusterManagers
 
+try
+    num_tasks = parse(Int, ENV["SLURM_NTASKS"])
+    @info "Number of slurm tasks: $num_tasks"
+
+    addprocs(SlurmManager(num_tasks), topology=:master_worker)
+catch KeyError
+    @warn "Not inside a slurm job"
+end
 
 @everywhere begin
     using Pkg
@@ -65,11 +74,23 @@ end
 
 args = parse_args(s)
 
-filename = string("sim_$(args["Nj"])_$(args["Ntraj"])_$(args["Tfinal"])_$(args["dt"])_$(args["kind"])_$(args["kcoll"])_$(args["omega"])_$(args["eta"])")
+jobid = "SLURM_JOB_ID" in keys(ENV) ? jobid = ENV["SLURM_JOB_ID"] : ""
+filename = string("sim_$(args["Nj"])_$(args["Ntraj"])_$(args["Tfinal"])_$(args["dt"])_$(args["kind"])_$(args["kcoll"])_$(args["omega"])_$(args["eta"])_$(jobid)")
 
-pkgs = Pkg.installed();
-
-@info "ContinuousMeasurementFI version: $(pkgs["ContinuousMeasurementFI"])"
+let pkgstr = ""
+    for (uuid, pkg) in Pkg.dependencies()
+        if pkg.is_direct_dep
+            pkgstr *= "\t$(pkg.name) $(pkg.version)"
+            if pkg.is_tracking_repo
+                pkgstr *= " #$(pkg.git_revision) ($(pkg.git_source))"
+            elseif pkg.is_tracking_path
+                pkgstr *= " $(pkg.source)"
+            end
+            pkgstr *= "\n"
+        end
+    end
+    @info "Installed packages\n$pkgstr"
+end
 
 @info "Output filename: $filename"
 
@@ -95,43 +116,48 @@ init_time = @elapsed begin
 @everywhere initial_state = coherentspinstate($modelparams.Nj)
 end
 
+println(model)
+println(initial_state)
+
 @info "Done in $init_time seconds..."
 
-@show model
-@show initial_state
-
-
-# Starts the writer function on the main process
-
-file_channel = RemoteChannel(() -> Channel{NamedTuple}(200))
-writer = @async write_to_file(file_channel, get_time(model), args["Ntraj"])
+# Opens the FileWriter
+writer = FileWriter("$filename.h5", modelparams, args["Ntraj"], ["FI", "QFI", "xi2y"])
 
 progress_channel = RemoteChannel(() -> Channel{Bool}(200))
 
-p = Progress(Ntraj * length(get_time(model)))
+p = Progress(Ntraj * length(get_time(model)), barglyphs=BarGlyphs("[=> ]"), barlen=10)
+
 @async while take!(progress_channel)
     next!(p)
 end
 
-numthreads = parse(Int, ENV["JULIA_NUM_THREADS"])
+if "JULIA_NUM_THREADS" in keys(ENV)
+    @everywhere numthreads = parse(Int, ENV["JULIA_NUM_THREADS"])
+    @everywhere @info("Number of threads: $numthreads")
+else
+    @everywhere @info("JULIA_NUM_THREADS not set, using 1 thread")
+    @everywhere numthreads = 1
+end
 
-@everywhere function thread_simulate_trajectory(model, initial_state, file_channel, progress_channel, ntraj)
+
+@everywhere function thread_simulate_trajectory(model, initial_state, ntraj, filewriter, progress_channel)
     pid = Distributed.myid()
     nth = Threads.nthreads()
     Threads.@threads for i in 1:ntraj
         tid = Threads.threadid()
-        println("Hello from thread $tid of $nth on worker $pid.")
-        simulate_trajectory(model, initial_state, file_channel, progress_channel)
+        #println("Hello from thread $tid of $nth on worker $pid.")
+        simulate_trajectory(model, initial_state, filewriter, progress_channel)
     end
 end
 
 trajectory_time = @elapsed begin
-    pmap(x -> thread_simulate_trajectory(model, initial_state, file_channel, progress_channel, numthreads), 1:numthreads:Ntraj)
+    pmap(x -> thread_simulate_trajectory(model, initial_state, numthreads, writer, progress_channel), 1:numthreads:Ntraj)
 end
 
-@info "Trajectory simulation time: $trajectory_time"
-
 put!(progress_channel, false)
+
+@info "Trajectory simulation time: $trajectory_time"
 
 for i in eachindex(workers())
     fetch(@spawnat i begin
@@ -139,16 +165,11 @@ for i in eachindex(workers())
             result = read(`grep VmHWM /proc/$(getpid())/status`, String)
             peakmem = tryparse(Int, String(match(r"(\d+)", result)[1]))
 
-            @info "Peak memory in GB:" peakmem / 1024^3
+            @info "Peak memory in GB: $(peakmem / 1024^2)"
         catch er
             @info er
         end
     end)
 end
 
-close(file_channel)
-
-fid = fetch(writer)
-@show fid
-
-close(fid)
+close(writer)
