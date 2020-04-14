@@ -170,8 +170,8 @@ function updatestate!(state::State, model::Model, dy::Real)
         @timeit_debug "superop" apply_superop!(state._tmp1, model.second_term, state.ρ)
 
         # TODO: Replace with broadcasting once implemented
-        @inbounds for i in eachindex(state._new_ρ.bloks)
-            state._new_ρ.bloks[i] .+= state._tmp1.blocks[i]
+        @inbounds for i in eachindex(state._new_ρ.blocks)
+            state._new_ρ.blocks[i] .+= state._tmp1.blocks[i]
         end
 
         zchop!(state._new_ρ) # Round off elements smaller than 1e-14
