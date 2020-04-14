@@ -9,11 +9,18 @@ struct FileWriter
     datasets::Dict
     writer::Task
 
-    function FileWriter(filename::String, timevector::Array{Float64,1}, total_trajectories::Int64, quantities)
+    function FileWriter(filename::String, params::ModelParameters, total_trajectories::Integer, quantities)
         fid = h5open(filename, "w")
 
+        timevector = collect(get_time(params))
         fid["t"] = timevector
         outpoints = length(timevector)
+
+        paramdict = Dict(string(fn)=>getfield(params, fn) for fn ∈ fieldnames(typeof(params)))
+
+        for (par, val) in paramdict
+            attrs(fid)[par] = val
+        end
 
         datasets = Dict()
         #for quantity in ("FI", "QFI", "Jx", "Jy", "Jz", "Δjx", "Δjy", "Δjz", "xi2x", "xi2y", "xi2z")
