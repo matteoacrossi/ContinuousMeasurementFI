@@ -33,10 +33,10 @@ module ContinuousMeasurementFI
     export Eff_QFI_HD_Dicke, Eff_QFI_HD_Dicke_0
     export simulate_trajectory
     export liouvillian, jspin, css
-    export Model, ModelParameters, State, updatestate!, updatekraus!, measure_current, expectation_value!
+    export Model, ModelParameters, State, updatestate!, measure_current, expectation_value!
     export get_time
     export InitializeModel, coherentspinstate
-    export write_to_file
+    export FileWriter, write_to_file
 
     include("NoiseOperators.jl")
     include("model.jl")
@@ -45,9 +45,9 @@ module ContinuousMeasurementFI
     include("Molmer_QFI.jl")
     include("Uncond_qfi_transverse.jl")
 
+    include("filewriter.jl")
     include("Eff_QFI_HD_Dicke.jl")
     include("Eff_QFI_HD.jl")
-    include("filewriter.jl")
 
     include("utils.jl")
     include("show.jl") # Pretty formatting

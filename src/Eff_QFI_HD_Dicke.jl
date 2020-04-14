@@ -5,7 +5,7 @@ using ProgressMeter
 
 function simulate_trajectory(model::Model,
                              initial_state::State,
-                             file_channel::Union{Channel,RemoteChannel,Nothing}=nothing,
+                             filewriter::Union{FileWriter,Nothing}=nothing,
                              progress_channel::Union{Channel,RemoteChannel,Nothing}=nothing)
 
     state = State(initial_state) # Copy the initial state
@@ -62,7 +62,7 @@ function simulate_trajectory(model::Model,
                     Jx=jx, Jy=jy, Jz=jz,
                     Δjx2=Δjx2, Δjy2=Δjy2, Δjz2=Δjz2,
                     xi2x=xi2x, xi2y=xi2y, xi2z=xi2z)
-    isnothing(file_channel) || put!(file_channel, result)
+    isnothing(filewriter) || put!(filewriter, result)
     return result
 end
 
