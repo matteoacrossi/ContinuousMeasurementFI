@@ -83,7 +83,7 @@ function Eff_QFI_HD_pure(Nj::Int64,     # Number of spins
 
         for jt=1:Ntime
             # Homodyne current (Eq. 35) (! c† = c)
-            dy = [2 * ψ' * c * ψ * dt for c in cj] + dW()
+            dy = [ψ' * ( c + c' ) * ψ * dt for c in cj] + dW()
 
             # Kraus operator (Eq. 36)
             M = M0
